@@ -9,7 +9,7 @@ import { listProviderTypes, getAdapter, isKnownProvider } from "./providers/inde
 import { ProviderError } from "./providers/base.js";
 import { scanTarget } from "./scanner.js";
 import { portScan, dnsLookup, fetchRobots, httpMethodsProbe } from "./tools.js";
-import { handleFinding, listIncidents, createRule, updateRule, deleteRule, setIncidentStatus, clearIncidents, testWebhook } from "./incident.js";
+import { handleFinding, listIncidents, createRule, updateRule, deleteRule, setIncidentStatus, clearIncidents, testWebhook, quarantineStatus, releaseQuarantine, initIncidentStore } from "./incident.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -20,6 +20,7 @@ app.use(express.json({ limit: "2mb" }));
 
 const db = getDb();
 db.findings ??= [];
+initIncidentStore();
 
 // ---------- helpers ----------
 
@@ -295,6 +296,10 @@ app.post("/api/scan", async (req, res) => {
   if (!target || typeof target !== "string") {
     return res.status(400).json({ ok: false, error: "Target URL is required." });
   }
+  const q = quarantineStatus(target);
+  if (q && !req.body?.force) {
+    return res.status(423).json({ ok: false, quarantined: true, error: `Target ${q.origin} is quarantined by incident response (${q.reason}). Release it in Incident Response page or pass force:true.`, quarantine: q });
+  }
   try {
     const result = await scanTarget(target, {
       mode: req.body?.mode, auth: req.body?.auth,
@@ -314,6 +319,10 @@ app.post("/api/scan/stream", async (req, res) => {
   const { target } = req.body ?? {};
   if (!target || typeof target !== "string") {
     return res.status(400).json({ ok: false, error: "Target URL is required." });
+  }
+  const q = quarantineStatus(target);
+  if (q && !req.body?.force) {
+    return res.status(423).json({ ok: false, quarantined: true, error: `Target ${q.origin} is quarantined by incident response (${q.reason}).`, quarantine: q });
   }
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -510,6 +519,13 @@ app.post("/api/incidents/test-webhook", async (req, res) => {
   if (!/^https?:\/\//i.test(url)) return res.status(400).json({ ok: false, error: "Invalid webhook URL" });
   const r = await testWebhook(req.body ?? {});
   res.json({ ok: r.ok, status: r.status, error: r.error });
+});
+
+app.delete("/api/quarantine/:origin", (req, res) => {
+  const origin = decodeURIComponent(req.params.origin);
+  const r = releaseQuarantine(origin);
+  if (r.error) return res.status(404).json({ ok: false, error: r.error });
+  res.json(r);
 });
 
 // ---------- usage logs ----------

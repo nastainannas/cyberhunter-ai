@@ -11,7 +11,31 @@ export function initIncidentStore() {
   const db = getDb();
   db.incidentRules ??= [];
   db.incidents ??= [];
+  db.quarantined ??= [];
   return db;
+}
+
+export function targetOrigin(target) {
+  try {
+    const u = new URL(/^https?:\/\//i.test(target) ? target : "https://" + target);
+    return u.origin;
+  } catch { return null; }
+}
+
+export function quarantineStatus(target) {
+  const db = initIncidentStore();
+  const origin = targetOrigin(target);
+  if (!origin) return null;
+  return db.quarantined.find((q) => q.origin === origin) ?? null;
+}
+
+export function releaseQuarantine(origin) {
+  const db = initIncidentStore();
+  const i = db.quarantined.findIndex((q) => q.origin === origin);
+  if (i < 0) return { error: "Not quarantined" };
+  db.quarantined.splice(i, 1);
+  saveDbNow();
+  return { ok: true };
 }
 
 function incidentText(inc) {
@@ -94,6 +118,21 @@ export async function handleFinding(f, target) {
         detail: "Incident ticket recorded — assign owner & apply remediation",
         at: new Date().toISOString(),
       });
+
+      // auto-containment: quarantine the target origin so future scans are
+      // blocked until an operator releases it manually
+      if (rule.quarantine) {
+        const origin = targetOrigin(target);
+        if (origin && !db.quarantined.some((q) => q.origin === origin)) {
+          db.quarantined.push({
+            origin,
+            reason: `${inc.severity}: ${inc.name}`,
+            incident_id: inc.id,
+            quarantined_at: new Date().toISOString(),
+          });
+          inc.actions.push({ type: "quarantine", ok: true, detail: `Target ${origin} quarantined`, at: new Date().toISOString() });
+        }
+      }
       saveDbNow();
     }
   } catch { /* incident response must never break a scan */ }
@@ -102,7 +141,7 @@ export async function handleFinding(f, target) {
 // ---------- CRUD ----------
 export function listIncidents() {
   const db = initIncidentStore();
-  return { rules: db.incidentRules, incidents: db.incidents };
+  return { rules: db.incidentRules, incidents: db.incidents, quarantined: db.quarantined };
 }
 
 export function createRule(body) {
@@ -114,6 +153,7 @@ export function createRule(body) {
     minSeverity: ["critical", "high", "medium", "low", "info"].includes(body.minSeverity) ? body.minSeverity : "high",
     webhookType: ["generic", "discord", "slack"].includes(body.webhookType) ? body.webhookType : "generic",
     webhookUrl: String(body.webhookUrl || "").slice(0, 500),
+    quarantine: body.quarantine === true,
     created_at: new Date().toISOString(),
   };
   if (rule.webhookUrl && !/^https?:\/\//i.test(rule.webhookUrl)) {
@@ -137,6 +177,7 @@ export function updateRule(id, body) {
     if (u && !/^https?:\/\//i.test(u)) return { error: "Webhook URL must start with http(s)://" };
     r.webhookUrl = u;
   }
+  if (body.quarantine !== undefined) r.quarantine = !!body.quarantine;
   saveDbNow();
   return { rule: r };
 }

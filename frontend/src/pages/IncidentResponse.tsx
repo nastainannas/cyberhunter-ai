@@ -9,11 +9,12 @@ const STATUS_COLOR: Record<string, string> = {
   open: "var(--danger)", acknowledged: "var(--warn)", resolved: "var(--info)",
 };
 
-const emptyRule = { name: "", minSeverity: "high", webhookType: "generic", webhookUrl: "", enabled: true };
+const emptyRule = { name: "", minSeverity: "high", webhookType: "generic", webhookUrl: "", enabled: true, quarantine: false };
 
 export default function IncidentResponse() {
   const [rules, setRules] = useState<any[]>([]);
   const [incidents, setIncidents] = useState<any[]>([]);
+  const [quarantined, setQuarantined] = useState<any[]>([]);
   const [form, setForm] = useState<any>(emptyRule);
   const [msg, setMsg] = useState("");
   const [testMsg, setTestMsg] = useState<Record<string, string>>({});
@@ -22,6 +23,7 @@ export default function IncidentResponse() {
     const r = await api.incidents();
     setRules(r.rules ?? []);
     setIncidents(r.incidents ?? []);
+    setQuarantined(r.quarantined ?? []);
   }
   useEffect(() => { load().catch(() => {}); }, []);
 
@@ -66,6 +68,12 @@ export default function IncidentResponse() {
     load();
   }
 
+  async function release(origin: string) {
+    if (!confirm(`Release quarantine for ${origin}? Future scans will be allowed again.`)) return;
+    await api.releaseQuarantine(origin);
+    load();
+  }
+
   const open = incidents.filter((i) => i.status !== "resolved").length;
 
   return (
@@ -89,6 +97,7 @@ export default function IncidentResponse() {
               {r.webhookUrl
                 ? <span className="tag" style={{ maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.webhookUrl}</span>
                 : <span className="tag" style={{ color: "var(--text-dim)" }}>no webhook — ticket only</span>}
+              {r.quarantine && <span className="tag" style={{ color: "var(--danger)" }}>auto-quarantine</span>}
               <span className="tag" style={{ color: r.enabled ? "var(--info)" : "var(--text-dim)" }}>{r.enabled ? "enabled" : "disabled"}</span>
               <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
                 {r.webhookUrl && (
@@ -122,11 +131,34 @@ export default function IncidentResponse() {
             <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />
             Enabled
           </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, fontSize: 13 }}>
+            <input type="checkbox" checked={!!form.quarantine} onChange={(e) => setForm({ ...form, quarantine: e.target.checked })} />
+            Auto-quarantine target — block future scans to this origin until released
+          </label>
           <div style={{ marginTop: 10 }}>
             <button className="btn primary" onClick={addRule} disabled={!form.name.trim()}>Add Rule</button>
           </div>
         </div>
       </div>
+
+      {quarantined.length > 0 && (
+        <div className="card" style={{ borderLeft: "3px solid var(--danger)" }}>
+          <h3 style={{ marginTop: 0, color: "var(--danger)" }}>Quarantined Targets ({quarantined.length})</h3>
+          <p className="status-text" style={{ marginTop: -6 }}>
+            Scans to these origins are blocked until manually released. This is an internal scan gate — it does not modify the target system.
+          </p>
+          {quarantined.map((q: any) => (
+            <div key={q.origin} className="card" style={{ marginTop: 8, borderLeft: "3px solid var(--danger)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <strong>{q.origin}</strong>
+                <span className="tag" style={{ color: "var(--danger)" }}>{q.reason}</span>
+                {q.quarantined_at && <span className="tag">{new Date(q.quarantined_at).toLocaleString()}</span>}
+                <button className="btn" style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px", color: "var(--info)" }} onClick={() => release(q.origin)}>Release</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="card">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

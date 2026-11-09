@@ -78,6 +78,7 @@ export const api = {
   setIncidentStatus: (id: string, status: string) => req(`/api/incidents/${id}/status`, { method: "POST", body: JSON.stringify({ status }) }),
   clearIncidents: () => req("/api/incidents", { method: "DELETE" }),
   testIncidentWebhook: (body: any) => req("/api/incidents/test-webhook", { method: "POST", body: JSON.stringify(body) }),
+  releaseQuarantine: (origin: string) => req(`/api/quarantine/${encodeURIComponent(origin)}`, { method: "DELETE" }),
 };
 
 export const PROVIDER_ICONS: Record<string, string> = {
