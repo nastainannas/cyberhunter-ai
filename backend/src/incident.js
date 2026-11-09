@@ -100,7 +100,10 @@ export async function handleFinding(f, target) {
     for (const rule of db.incidentRules) {
       if (!rule.enabled) continue;
       if ((SEV[f.severity] ?? 0) < (SEV[rule.minSeverity] ?? SEV.high)) continue;
-      const sig = `${rule.id}|${target}|${f.name}|${f.param ?? ""}|${f.url ?? ""}`;
+      const fname = f.title || f.name || f.category || "Finding";
+      const furl = f.url || f.endpoint || "";
+      const fparam = f.param || f.parameter || "";
+      const sig = `${rule.id}|${target}|${fname}|${fparam}|${furl}`;
       const dup = db.incidents.find((i) =>
         i.sig === sig && i.status !== "resolved" &&
         Date.now() - new Date(i.created_at).getTime() < DEDUPE_MS);
@@ -115,11 +118,11 @@ export async function handleFinding(f, target) {
         target,
         status: "open",
         severity: f.severity,
-        name: f.name,
+        name: fname,
         category: f.category ?? "",
         owasp: f.owasp ?? "",
-        url: f.url ?? "",
-        param: f.param ?? "",
+        url: furl,
+        param: fparam,
         payload: f.payload ?? "",
         recommendation: f.recommendation ?? "",
         actions: [],
