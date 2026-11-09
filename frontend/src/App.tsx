@@ -12,6 +12,7 @@ export default function App() {
     <>
       <nav className="sidebar">
         <div className="brand">CYBERHUNTER AI</div>
+        <div className="brand-sub">by Nastain</div>
         <NavLink to="/" end>Dashboard</NavLink>
         <NavLink to="/scan">Scan Target</NavLink>
         <NavLink to="/tools">Recon Tools</NavLink>
