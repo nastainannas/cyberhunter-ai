@@ -4,3 +4,4 @@ backend/data/
 *.log
 .env
 ~$*
+submission-assets/cyberhunter-slides.pptx
