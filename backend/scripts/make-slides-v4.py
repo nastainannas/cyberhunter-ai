@@ -174,6 +174,7 @@ f = tb(s, Inches(0.9), Inches(5.75), Inches(11), Inches(0.6))
 p = f.paragraphs[0]
 run(p, "Oleh  ", size=15, color=DIM)
 run(p, "Nastain", size=15, color=WHITE, bold=True)
+run(p, "  ·  Team Ternakheck", size=15, color=RGBColor(0x9D,0xC3,0xFF), bold=True)
 for (x, y, d, c) in [(10.7,-1.6,5.2,PANEL),(12.0,5.5,2.6,PANEL),(11.9,1.6,1.6,LINE)]:
     o = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(x), Inches(y), Inches(d), Inches(d))
     o.fill.solid(); o.fill.fore_color.rgb = c; o.line.fill.background(); o.shadow.inherit = False
@@ -469,7 +470,7 @@ f = tb(s, Inches(0.9), Inches(5.9), Inches(11.5), Inches(0.6))
 p = f.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
 run(p, "github.com/nastainannas/cyberhunter-ai", size=15, color=WHITE, bold=True)
 p3 = f.add_paragraph(); p3.alignment = PP_ALIGN.CENTER; p3.space_before = Pt(8)
-run(p3, "Oleh Nastain", size=13, color=DIM)
+run(p3, "Oleh Nastain  ·  Team Ternakheck", size=13, color=DIM)
 
 try:
     prs.save(OUT)
