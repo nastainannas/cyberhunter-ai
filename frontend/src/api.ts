@@ -87,6 +87,9 @@ export const api = {
     req<{ ok: boolean; programs?: any[]; error?: string; needCreds?: boolean }>(`/api/bounty/programs?platform=${platform}&q=${encodeURIComponent(q)}&page=${page}`),
   bountyScope: (platform: string, handle: string) =>
     req<{ ok: boolean; scopes?: any[]; error?: string; needCreds?: boolean }>(`/api/bounty/programs/${platform}/${encodeURIComponent(handle)}/scope`),
+  startAutoHunt: (body: any) => req<{ ok?: boolean; error?: string }>("/api/bounty/auto-hunt", { method: "POST", body: JSON.stringify(body) }),
+  autoHuntStatus: () => req<any>("/api/bounty/auto-hunt/status"),
+  stopAutoHunt: () => req<{ ok?: boolean; error?: string }>("/api/bounty/auto-hunt/stop", { method: "POST" }),
 };
 
 export const PROVIDER_ICONS: Record<string, string> = {

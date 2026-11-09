@@ -10,7 +10,7 @@ import { ProviderError } from "./providers/base.js";
 import { scanTarget } from "./scanner.js";
 import { portScan, dnsLookup, fetchRobots, httpMethodsProbe } from "./tools.js";
 import { handleFinding, listIncidents, createRule, updateRule, deleteRule, setIncidentStatus, clearIncidents, testWebhook, quarantineStatus, releaseQuarantine, initIncidentStore, addWhitelist, removeWhitelist } from "./incident.js";
-import { saveCreds, hasCreds, listPrograms, programScope } from "./bugbounty.js";
+import { saveCreds, hasCreds, listPrograms, programScope, autoHunt, huntStatus, stopHunt } from "./bugbounty.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -551,6 +551,26 @@ app.get("/api/bounty/programs/:platform/:handle/scope", async (req, res) => {
   const r = await programScope(req.params.platform, req.params.handle);
   if (r.error) return res.status(r.needCreds ? 428 : 502).json({ ok: false, ...r });
   res.json({ ok: true, ...r });
+});
+
+app.post("/api/bounty/auto-hunt", (req, res) => {
+  const r = autoHunt({
+    platform: String(req.body?.platform ?? "hackerone"),
+    maxPrograms: Math.min(parseInt(req.body?.maxPrograms, 10) || 5, 20),
+    mode: req.body?.mode === "active" ? "active" : "passive",
+    maxPages: Math.min(parseInt(req.body?.maxPages, 10) || 25, 100),
+    requestDelayMs: Math.min(parseInt(req.body?.requestDelayMs, 10) || 300, 5000),
+  });
+  if (r.error) return res.status(r.needCreds ? 428 : 409).json({ ok: false, ...r });
+  res.json(r);
+});
+
+app.get("/api/bounty/auto-hunt/status", (req, res) => {
+  res.json({ ok: true, ...huntStatus() });
+});
+
+app.post("/api/bounty/auto-hunt/stop", (req, res) => {
+  res.json(stopHunt());
 });
 
 app.delete("/api/quarantine/:origin", (req, res) => {

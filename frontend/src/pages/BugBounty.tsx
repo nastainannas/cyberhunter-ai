@@ -14,6 +14,9 @@ export default function BugBounty() {
   const [err, setErr] = useState("");
   const [scopes, setScopes] = useState<Record<string, any[]>>({});
   const [scopeLoading, setScopeLoading] = useState<Record<string, boolean>>({});
+  const [hunt, setHunt] = useState<any>(null);
+  const [huntCfg, setHuntCfg] = useState({ maxPrograms: 5, mode: "passive" as "passive" | "active" });
+  const [huntMsg, setHuntMsg] = useState("");
 
   async function loadStatus() {
     const s = await api.bountyStatus();
@@ -51,6 +54,32 @@ export default function BugBounty() {
       setScopes((s) => ({ ...s, [handle]: r.scopes ?? [] }));
     } catch { setScopes((s) => ({ ...s, [handle]: [] })); }
     setScopeLoading((s) => ({ ...s, [handle]: false }));
+  }
+
+  async function huntStatus() {
+    try {
+      const r = await api.autoHuntStatus();
+      setHunt(r);
+      if (r.running || r.job?.status === "discovering" || r.job?.status === "scanning") {
+        setTimeout(huntStatus, 3000);
+      }
+    } catch { /* ignore */ }
+  }
+
+  useEffect(() => { huntStatus(); }, []);
+
+  async function startHunt() {
+    setHuntMsg("");
+    try {
+      const r = await api.startAutoHunt({ platform, ...huntCfg });
+      if (r.error) setHuntMsg(r.error);
+      else { setHuntMsg("Hunt started — discovering programs…"); huntStatus(); }
+    } catch (e: any) { setHuntMsg(e.message); }
+  }
+
+  async function stopHunt() {
+    await api.stopAutoHunt();
+    huntStatus();
   }
 
   function assetToTarget(asset: string): string | null {
@@ -119,6 +148,59 @@ export default function BugBounty() {
 
         {err && <div className="notice" style={{ color: "var(--danger)" }}>{err}</div>}
         {loading && <p className="status-text">Loading programs…</p>}
+
+        {configured && (
+          <div className="card" style={{ borderLeft: "3px solid var(--warn)", marginBottom: 14 }}>
+            <h3 style={{ marginTop: 0 }}>Auto Hunt</h3>
+            <p className="status-text" style={{ marginTop: -6 }}>
+              Automatically discover public {platform === "hackerone" ? "HackerOne" : "YesWeHack"} programs,
+              collect their in-scope URL assets, and scan them one by one. Findings are saved to Findings Database.
+            </p>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <label style={{ fontSize: 13 }}>Programs:
+                <input type="number" min={1} max={20} value={huntCfg.maxPrograms}
+                  onChange={(e) => setHuntCfg({ ...huntCfg, maxPrograms: parseInt(e.target.value, 10) || 1 })}
+                  style={{ width: 60, marginLeft: 6 }} />
+              </label>
+              <label style={{ fontSize: 13 }}>Mode:
+                <select value={huntCfg.mode} onChange={(e) => setHuntCfg({ ...huntCfg, mode: e.target.value as any })} style={{ marginLeft: 6 }}>
+                  <option value="passive">Passive (recon only)</option>
+                  <option value="active">Active (send probes)</option>
+                </select>
+              </label>
+              {hunt?.running || hunt?.status === "discovering" || hunt?.status === "scanning" ? (
+                <button className="btn danger" onClick={stopHunt}>Stop Hunt</button>
+              ) : (
+                <button className="btn primary" onClick={startHunt}>Start Auto Hunt</button>
+              )}
+              {huntMsg && <span className="status-text">{huntMsg}</span>}
+            </div>
+            {hunt?.job && (
+              <div style={{ marginTop: 10, fontSize: 13 }}>
+                <div className="status-text">
+                  Status: <strong>{hunt.job.status}</strong> · programs seen: {hunt.job.programs_seen}
+                  {hunt.job.targets_total != null && ` · targets: ${hunt.job.done}/${hunt.job.targets_total}`}
+                  {hunt.job.current && ` · now: ${hunt.job.current}`}
+                </div>
+                {(hunt.job.targets ?? []).length > 0 && (
+                  <div style={{ marginTop: 8, maxHeight: 220, overflowY: "auto" }}>
+                    {hunt.job.targets.map((t: any, i: number) => (
+                      <div key={i} style={{ display: "flex", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--border)", fontSize: 12 }}>
+                        <span className="tag" style={{
+                          color: t.status === "done" ? "var(--info)" : t.status === "error" ? "var(--danger)" : "var(--warn)",
+                        }}>{t.status}</span>
+                        <code style={{ flex: 1 }}>{t.target}</code>
+                        <span className="tag">{t.program}</span>
+                        {t.findings != null && <span className="tag">{t.findings} findings</span>}
+                        {t.error && <span style={{ color: "var(--danger)" }}>{t.error}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {programs.map((p) => (
           <div key={p.handle} className="card" style={{ marginBottom: 8, borderLeft: "3px solid var(--info)" }}>
