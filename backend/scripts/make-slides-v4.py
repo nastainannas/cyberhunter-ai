@@ -249,8 +249,8 @@ def l6():
         run(p, num + "  ", size=14, color=c, bold=True, font=FH)
         run(p, h + "  ", size=14, color=WHITE, bold=True)
         run(p, b, size=12.5, color=DIM)
-side_slide(s, 6, "Cara Kerja", "Alur Assessment", l6, "tools.png",
-           "Tools — utilitas pendukung assessment")
+side_slide(s, 6, "Cara Kerja", "Alur Assessment", l6, "scan.png",
+           "Scan Target — alur assessment real-time")
 
 # ================= 7 · CAKUPAN =================
 s = slide()
@@ -317,8 +317,8 @@ def l11():
         ("Rate limiting", "Request delay dapat diatur — beban ke target tetap wajar."),
         ("Scope awareness", "robots.txt Disallow → peringatan; area terlarang tidak disentuh."),
     ], size=14)
-side_slide(s, 11, "Keamanan", "Etika & Authorized Testing", l11, "ai-config.png",
-           "AI Configuration — provider & API key terenkripsi")
+side_slide(s, 11, "Keamanan", "Etika & Authorized Testing", l11, "tools.png",
+           "Tools — utilitas pendukung assessment")
 
 # ================= 12 · TEKNOLOGI =================
 s = slide()
@@ -333,8 +333,8 @@ def l12():
         l = 0.85 + (i % 2) * 2.72
         t = 1.6 + (i // 2) * 2.5
         card(s, l, t, 2.55, 2.3, h, b, accent=c, hsize=13, bsize=10.5)
-side_slide(s, 12, "Stack", "Teknologi", l12, "scan.png",
-           "Scan Target — antarmuka assessment")
+side_slide(s, 12, "Stack", "Teknologi", l12, "ai-config.png",
+           "AI Configuration — 6 provider model")
 
 # ================= 13 · ROADMAP =================
 s = slide()
