@@ -9,6 +9,7 @@ import { listProviderTypes, getAdapter, isKnownProvider } from "./providers/inde
 import { ProviderError } from "./providers/base.js";
 import { scanTarget } from "./scanner.js";
 import { portScan, dnsLookup, fetchRobots, httpMethodsProbe } from "./tools.js";
+import { handleFinding, listIncidents, createRule, updateRule, deleteRule, setIncidentStatus, clearIncidents, testWebhook } from "./incident.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -357,6 +358,7 @@ app.post("/api/scan/stream", async (req, res) => {
         recount();
         saveDbNow();
         send({ type: "finding", finding: f });
+        handleFinding(f, entry.target).catch(() => {});
       },
     }, (msg) => send({ type: "log", message: msg }));
     // finalize the record with the official result (covers any findings the
@@ -467,6 +469,47 @@ app.delete("/api/findings/:id", (req, res) => {
   db.findings.splice(idx, 1);
   saveDbNow();
   res.json({ ok: true });
+});
+
+// ---------- incident response ----------
+
+app.get("/api/incidents", (_req, res) => {
+  res.json({ ok: true, ...listIncidents() });
+});
+
+app.post("/api/incidents/rules", (req, res) => {
+  const r = createRule(req.body ?? {});
+  if (r.error) return res.status(400).json({ ok: false, error: r.error });
+  res.json({ ok: true, rule: r.rule });
+});
+
+app.put("/api/incidents/rules/:id", (req, res) => {
+  const r = updateRule(req.params.id, req.body ?? {});
+  if (r.error) return res.status(404).json({ ok: false, error: r.error });
+  res.json({ ok: true, rule: r.rule });
+});
+
+app.delete("/api/incidents/rules/:id", (req, res) => {
+  const r = deleteRule(req.params.id);
+  if (r.error) return res.status(404).json({ ok: false, error: r.error });
+  res.json(r);
+});
+
+app.post("/api/incidents/:id/status", (req, res) => {
+  const r = setIncidentStatus(req.params.id, req.body?.status);
+  if (r.error) return res.status(400).json({ ok: false, error: r.error });
+  res.json({ ok: true, incident: r.incident });
+});
+
+app.delete("/api/incidents", (_req, res) => {
+  res.json(clearIncidents());
+});
+
+app.post("/api/incidents/test-webhook", async (req, res) => {
+  const url = String(req.body?.webhookUrl || "");
+  if (!/^https?:\/\//i.test(url)) return res.status(400).json({ ok: false, error: "Invalid webhook URL" });
+  const r = await testWebhook(req.body ?? {});
+  res.json({ ok: r.ok, status: r.status, error: r.error });
 });
 
 // ---------- usage logs ----------

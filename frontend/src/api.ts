@@ -71,6 +71,13 @@ export const api = {
   saveFinding: (scan: any) => req("/api/findings", { method: "POST", body: JSON.stringify({ scan }) }),
   deleteFinding: (id: string) => req(`/api/findings/${id}`, { method: "DELETE" }),
   clearFindings: () => req("/api/findings", { method: "DELETE" }),
+  incidents: () => req<{ ok: boolean; rules: any[]; incidents: any[] }>("/api/incidents"),
+  createIncidentRule: (body: any) => req("/api/incidents/rules", { method: "POST", body: JSON.stringify(body) }),
+  updateIncidentRule: (id: string, body: any) => req(`/api/incidents/rules/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteIncidentRule: (id: string) => req(`/api/incidents/rules/${id}`, { method: "DELETE" }),
+  setIncidentStatus: (id: string, status: string) => req(`/api/incidents/${id}/status`, { method: "POST", body: JSON.stringify({ status }) }),
+  clearIncidents: () => req("/api/incidents", { method: "DELETE" }),
+  testIncidentWebhook: (body: any) => req("/api/incidents/test-webhook", { method: "POST", body: JSON.stringify(body) }),
 };
 
 export const PROVIDER_ICONS: Record<string, string> = {
