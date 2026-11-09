@@ -12,6 +12,7 @@ export function initIncidentStore() {
   db.incidentRules ??= [];
   db.incidents ??= [];
   db.quarantined ??= [];
+  db.quarantineWhitelist ??= [];
   return db;
 }
 
@@ -26,15 +27,33 @@ export function quarantineStatus(target) {
   const db = initIncidentStore();
   const origin = targetOrigin(target);
   if (!origin) return null;
+  if (db.quarantineWhitelist.includes(origin)) return null;
   return db.quarantined.find((q) => q.origin === origin) ?? null;
 }
 
-export function releaseQuarantine(origin) {
+export function isWhitelisted(origin) {
+  return initIncidentStore().quarantineWhitelist.includes(origin);
+}
+
+function quarantineWebhook(origin, action, reason, rule) {
+  const url = rule?.webhookUrl && rule?.quarantineWebhook === true ? rule.webhookUrl : null;
+  if (!url) return;
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source: "cyberhunter-ai", action, origin, reason }),
+    signal: AbortSignal.timeout(8000),
+    redirect: "follow",
+  }).catch(() => {});
+}
+
+export function releaseQuarantine(origin, opts = {}) {
   const db = initIncidentStore();
   const i = db.quarantined.findIndex((q) => q.origin === origin);
   if (i < 0) return { error: "Not quarantined" };
-  db.quarantined.splice(i, 1);
+  const [q] = db.quarantined.splice(i, 1);
   saveDbNow();
+  if (!opts.silent) quarantineWebhook(origin, "release", q.reason, db.incidentRules.find((r) => r.id === q.rule_id));
   return { ok: true };
 }
 
@@ -123,14 +142,16 @@ export async function handleFinding(f, target) {
       // blocked until an operator releases it manually
       if (rule.quarantine) {
         const origin = targetOrigin(target);
-        if (origin && !db.quarantined.some((q) => q.origin === origin)) {
+        if (origin && !isWhitelisted(origin) && !db.quarantined.some((q) => q.origin === origin)) {
           db.quarantined.push({
             origin,
             reason: `${inc.severity}: ${inc.name}`,
             incident_id: inc.id,
+            rule_id: rule.id,
             quarantined_at: new Date().toISOString(),
           });
           inc.actions.push({ type: "quarantine", ok: true, detail: `Target ${origin} quarantined`, at: new Date().toISOString() });
+          quarantineWebhook(origin, "quarantine", `${inc.severity}: ${inc.name}`, rule);
         }
       }
       saveDbNow();
@@ -141,7 +162,25 @@ export async function handleFinding(f, target) {
 // ---------- CRUD ----------
 export function listIncidents() {
   const db = initIncidentStore();
-  return { rules: db.incidentRules, incidents: db.incidents, quarantined: db.quarantined };
+  return { rules: db.incidentRules, incidents: db.incidents, quarantined: db.quarantined, whitelist: db.quarantineWhitelist };
+}
+
+export function addWhitelist(origin) {
+  const o = targetOrigin(origin) ?? String(origin).trim();
+  if (!o) return { error: "Invalid origin" };
+  const db = initIncidentStore();
+  if (!db.quarantineWhitelist.includes(o)) db.quarantineWhitelist.push(o);
+  saveDbNow();
+  return { ok: true, whitelist: db.quarantineWhitelist };
+}
+
+export function removeWhitelist(origin) {
+  const db = initIncidentStore();
+  const i = db.quarantineWhitelist.indexOf(origin);
+  if (i < 0) return { error: "Not whitelisted" };
+  db.quarantineWhitelist.splice(i, 1);
+  saveDbNow();
+  return { ok: true, whitelist: db.quarantineWhitelist };
 }
 
 export function createRule(body) {
@@ -154,6 +193,7 @@ export function createRule(body) {
     webhookType: ["generic", "discord", "slack"].includes(body.webhookType) ? body.webhookType : "generic",
     webhookUrl: String(body.webhookUrl || "").slice(0, 500),
     quarantine: body.quarantine === true,
+    quarantineWebhook: body.quarantineWebhook === true,
     created_at: new Date().toISOString(),
   };
   if (rule.webhookUrl && !/^https?:\/\//i.test(rule.webhookUrl)) {
@@ -178,6 +218,7 @@ export function updateRule(id, body) {
     r.webhookUrl = u;
   }
   if (body.quarantine !== undefined) r.quarantine = !!body.quarantine;
+  if (body.quarantineWebhook !== undefined) r.quarantineWebhook = !!body.quarantineWebhook;
   saveDbNow();
   return { rule: r };
 }
@@ -199,6 +240,12 @@ export function setIncidentStatus(id, status) {
   inc.status = status;
   inc.status_at = new Date().toISOString();
   saveDbNow();
+  // auto-release: resolving the incident lifts quarantine entries it created
+  if (status === "resolved") {
+    for (const q of [...db.quarantined]) {
+      if (q.incident_id === id) releaseQuarantine(q.origin);
+    }
+  }
   return { incident: inc };
 }
 

@@ -79,6 +79,8 @@ export const api = {
   clearIncidents: () => req("/api/incidents", { method: "DELETE" }),
   testIncidentWebhook: (body: any) => req("/api/incidents/test-webhook", { method: "POST", body: JSON.stringify(body) }),
   releaseQuarantine: (origin: string) => req(`/api/quarantine/${encodeURIComponent(origin)}`, { method: "DELETE" }),
+  addWhitelist: (origin: string) => req("/api/quarantine-whitelist", { method: "POST", body: JSON.stringify({ origin }) }),
+  removeWhitelist: (origin: string) => req(`/api/quarantine-whitelist/${encodeURIComponent(origin)}`, { method: "DELETE" }),
 };
 
 export const PROVIDER_ICONS: Record<string, string> = {

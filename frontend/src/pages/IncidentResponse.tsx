@@ -9,12 +9,14 @@ const STATUS_COLOR: Record<string, string> = {
   open: "var(--danger)", acknowledged: "var(--warn)", resolved: "var(--info)",
 };
 
-const emptyRule = { name: "", minSeverity: "high", webhookType: "generic", webhookUrl: "", enabled: true, quarantine: false };
+const emptyRule = { name: "", minSeverity: "high", webhookType: "generic", webhookUrl: "", enabled: true, quarantine: false, quarantineWebhook: false };
 
 export default function IncidentResponse() {
   const [rules, setRules] = useState<any[]>([]);
   const [incidents, setIncidents] = useState<any[]>([]);
   const [quarantined, setQuarantined] = useState<any[]>([]);
+  const [whitelist, setWhitelist] = useState<string[]>([]);
+  const [wlInput, setWlInput] = useState("");
   const [form, setForm] = useState<any>(emptyRule);
   const [msg, setMsg] = useState("");
   const [testMsg, setTestMsg] = useState<Record<string, string>>({});
@@ -24,6 +26,7 @@ export default function IncidentResponse() {
     setRules(r.rules ?? []);
     setIncidents(r.incidents ?? []);
     setQuarantined(r.quarantined ?? []);
+    setWhitelist(r.whitelist ?? []);
   }
   useEffect(() => { load().catch(() => {}); }, []);
 
@@ -74,6 +77,21 @@ export default function IncidentResponse() {
     load();
   }
 
+  async function addWl() {
+    const o = wlInput.trim();
+    if (!o) return;
+    try {
+      await api.addWhitelist(o);
+      setWlInput("");
+      load();
+    } catch (e: any) { setMsg(e.message); }
+  }
+
+  async function removeWl(origin: string) {
+    await api.removeWhitelist(origin);
+    load();
+  }
+
   const open = incidents.filter((i) => i.status !== "resolved").length;
 
   return (
@@ -98,6 +116,7 @@ export default function IncidentResponse() {
                 ? <span className="tag" style={{ maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.webhookUrl}</span>
                 : <span className="tag" style={{ color: "var(--text-dim)" }}>no webhook — ticket only</span>}
               {r.quarantine && <span className="tag" style={{ color: "var(--danger)" }}>auto-quarantine</span>}
+              {r.quarantineWebhook && <span className="tag" style={{ color: "var(--warn)" }}>containment webhook</span>}
               <span className="tag" style={{ color: r.enabled ? "var(--info)" : "var(--text-dim)" }}>{r.enabled ? "enabled" : "disabled"}</span>
               <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
                 {r.webhookUrl && (
@@ -135,6 +154,12 @@ export default function IncidentResponse() {
             <input type="checkbox" checked={!!form.quarantine} onChange={(e) => setForm({ ...form, quarantine: e.target.checked })} />
             Auto-quarantine target — block future scans to this origin until released
           </label>
+          {form.quarantine && (
+            <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, fontSize: 13, marginLeft: 24 }}>
+              <input type="checkbox" checked={!!form.quarantineWebhook} onChange={(e) => setForm({ ...form, quarantineWebhook: e.target.checked })} />
+              Notify containment webhook — POST {"{action, origin, reason}"} to webhook URL on quarantine/release (wire to WAF/firewall automation)
+            </label>
+          )}
           <div style={{ marginTop: 10 }}>
             <button className="btn primary" onClick={addRule} disabled={!form.name.trim()}>Add Rule</button>
           </div>
@@ -159,6 +184,25 @@ export default function IncidentResponse() {
           ))}
         </div>
       )}
+
+      <div className="card" style={{ borderLeft: "3px solid var(--info)" }}>
+        <h3 style={{ marginTop: 0 }}>Quarantine Whitelist</h3>
+        <p className="status-text" style={{ marginTop: -6 }}>
+          Whitelisted origins can never be quarantined — use for your own lab/authorized targets.
+        </p>
+        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <input placeholder="https://lab.internal:8080" value={wlInput} onChange={(e) => setWlInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addWl()} style={{ flex: 1 }} />
+          <button className="btn primary" onClick={addWl} disabled={!wlInput.trim()}>Add</button>
+        </div>
+        {whitelist.length === 0 && <p className="status-text">No whitelisted origins.</p>}
+        {whitelist.map((o) => (
+          <div key={o} className="card" style={{ marginTop: 6, borderLeft: "3px solid var(--info)", display: "flex", alignItems: "center", gap: 10 }}>
+            <strong style={{ fontSize: 13 }}>{o}</strong>
+            <button className="btn danger" style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px" }} onClick={() => removeWl(o)}>Remove</button>
+          </div>
+        ))}
+      </div>
 
       <div className="card">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

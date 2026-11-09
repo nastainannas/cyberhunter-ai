@@ -9,7 +9,7 @@ import { listProviderTypes, getAdapter, isKnownProvider } from "./providers/inde
 import { ProviderError } from "./providers/base.js";
 import { scanTarget } from "./scanner.js";
 import { portScan, dnsLookup, fetchRobots, httpMethodsProbe } from "./tools.js";
-import { handleFinding, listIncidents, createRule, updateRule, deleteRule, setIncidentStatus, clearIncidents, testWebhook, quarantineStatus, releaseQuarantine, initIncidentStore } from "./incident.js";
+import { handleFinding, listIncidents, createRule, updateRule, deleteRule, setIncidentStatus, clearIncidents, testWebhook, quarantineStatus, releaseQuarantine, initIncidentStore, addWhitelist, removeWhitelist } from "./incident.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -524,6 +524,18 @@ app.post("/api/incidents/test-webhook", async (req, res) => {
 app.delete("/api/quarantine/:origin", (req, res) => {
   const origin = decodeURIComponent(req.params.origin);
   const r = releaseQuarantine(origin);
+  if (r.error) return res.status(404).json({ ok: false, error: r.error });
+  res.json(r);
+});
+
+app.post("/api/quarantine-whitelist", (req, res) => {
+  const r = addWhitelist(req.body?.origin ?? "");
+  if (r.error) return res.status(400).json({ ok: false, error: r.error });
+  res.json(r);
+});
+
+app.delete("/api/quarantine-whitelist/:origin", (req, res) => {
+  const r = removeWhitelist(decodeURIComponent(req.params.origin));
   if (r.error) return res.status(404).json({ ok: false, error: r.error });
   res.json(r);
 });
