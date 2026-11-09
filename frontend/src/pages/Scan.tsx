@@ -9,6 +9,7 @@ import {
   shiftQueue,
   subscribeScan,
 } from "../scanStore";
+import { exploitSteps } from "../exploitSteps";
 
 export interface Finding {
   id: string;
@@ -82,7 +83,7 @@ const REPORT_I18N: Record<string, Record<string, string>> = {
     confirmed: "Confirmed Vulnerabilities", all: "All Checks",
     th_no: "ID", th_url: "URL", th_type: "Type", th_parampos: "ParamPosition", th_paramkey: "ParamKey",
     th_payload: "Payload", th_sev: "Severity", th_request: "Request", th_response: "Response",
-    th_evidence: "Evidence", th_exploit: "Exploitation", th_remediation: "Remediation",
+    th_evidence: "Evidence", th_exploit: "Exploitation", th_steps: "Exploitation Steps", th_remediation: "Remediation",
     loc_query: "query", loc_body: "body", loc_header: "header", loc_cookie: "cookie",
     loc_path: "path", loc_fragment: "fragment", loc_other: "other",
     dash: "—",
@@ -94,7 +95,7 @@ const REPORT_I18N: Record<string, Record<string, string>> = {
     confirmed: "Kerentanan Terkonfirmasi", all: "Semua Pemeriksaan",
     th_no: "ID", th_url: "URL", th_type: "Tipe", th_parampos: "Posisi Parameter", th_paramkey: "Nama Parameter",
     th_payload: "Payload", th_sev: "Tingkat", th_request: "Request", th_response: "Response",
-    th_evidence: "Bukti", th_exploit: "Eksploitasi", th_remediation: "Remediasi",
+    th_evidence: "Bukti", th_exploit: "Eksploitasi", th_steps: "Langkah Eksploitasi", th_remediation: "Remediasi",
     loc_query: "query", loc_body: "body", loc_header: "header", loc_cookie: "cookie",
     loc_path: "path", loc_fragment: "fragment", loc_other: "other",
     dash: "—",
@@ -141,6 +142,8 @@ export function exportReport(r: ScanResult) {
       <h4 data-i18n="th_response"></h4>${pre(f.response)}
       <p><strong data-i18n="th_evidence"></strong>: ${esc(f.evidence)}</p>
       ${f.exploit ? `<p><strong data-i18n="th_exploit"></strong>: ${esc(f.exploit)}</p>` : ""}
+      <h4 data-i18n="th_steps"></h4>
+      <ol class="steps">${exploitSteps(f).map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
       <p><strong data-i18n="th_remediation"></strong>: ${esc(f.recommendation)}</p>
     </div>`;
   }).join("");
@@ -158,6 +161,7 @@ th{background:#11161f} code{background:#161d28;padding:2px 5px;border-radius:4px
 .vuln{border:1px solid #232c3d;border-radius:10px;padding:16px;margin:18px 0;background:#0d1117}
 .meta-table{max-width:900px}.meta-table th{width:140px}
 pre.raw{background:#060a10;border:1px solid #232c3d;border-radius:8px;padding:12px;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:420px;overflow:auto}
+ol.steps{margin:6px 0 14px;padding-left:22px;font-size:12px;display:grid;gap:4px}ol.steps li{color:#c9d4e3}
 #langbar{position:fixed;top:14px;right:18px;display:flex;gap:6px;z-index:9}
 #langbar button{background:#161d28;color:#e6edf3;border:1px solid #232c3d;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px}
 #langbar button.on{background:#0b3d2e;border-color:#00e5a0;color:#00e5a0}
@@ -614,6 +618,12 @@ export default function Scan() {
                   )}
                   <div><strong>Evidence:</strong> {f.evidence}</div>
                   {f.exploit && <div><strong>How it can be exploited:</strong> {f.exploit}</div>}
+                  <div>
+                    <strong>Exploitation steps:</strong>
+                    <ol style={{ margin: "4px 0 0", paddingLeft: 20, display: "grid", gap: 3 }}>
+                      {exploitSteps(f).map((s, j) => <li key={j}>{s}</li>)}
+                    </ol>
+                  </div>
                   <div><strong>Confidence:</strong> {f.confidence}</div>
                   <div><strong>Remediation:</strong> {f.recommendation}</div>
                 </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { exportReport, ScanResult } from "./Scan";
+import { exploitSteps } from "../exploitSteps";
 
 const SEV_COLOR: Record<string, string> = {
   critical: "var(--danger)", high: "#ff8c42", medium: "var(--warn)", low: "var(--info)", info: "var(--text-dim)",
@@ -96,6 +97,12 @@ export default function Findings() {
                     {f.vector && <span className="tag">via {f.vector}</span>}
                     {f.payload && <div style={{ fontSize: 12, marginTop: 4 }}><strong>Payload:</strong> <code>{f.payload}</code></div>}
                     <p className="status-text" style={{ margin: "4px 0 0" }}>{f.evidence}</p>
+                    <details style={{ marginTop: 6 }}>
+                      <summary style={{ cursor: "pointer", fontSize: 12, color: "var(--info)" }}>Exploit steps ({exploitSteps(f).length})</summary>
+                      <ol style={{ margin: "6px 0 0", paddingLeft: 20, fontSize: 12, display: "grid", gap: 4 }}>
+                        {exploitSteps(f).map((s, j) => <li key={j}>{s}</li>)}
+                      </ol>
+                    </details>
                   </div>
                   ));
                 })()}
