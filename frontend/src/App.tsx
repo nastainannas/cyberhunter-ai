@@ -18,10 +18,12 @@ export default function App() {
         <NavLink to="/scan">Scan Target</NavLink>
         <NavLink to="/tools">Recon Tools</NavLink>
         <NavLink to="/findings">Findings Database</NavLink>
-        <NavLink to="/incidents">Incident Response</NavLink>
         <NavLink to="/ai-config">AI Configuration</NavLink>
         <NavLink to="/ai-playground">AI Playground</NavLink>
         <NavLink to="/usage-logs">Usage Logs</NavLink>
+        <div className="sidebar-box">
+          <NavLink to="/incidents">Incident Response</NavLink>
+        </div>
       </nav>
       <main className="main">
         <Routes>

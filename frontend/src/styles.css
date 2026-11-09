@@ -58,6 +58,14 @@ body {
 }
 .sidebar a:hover { background: var(--bg-card); color: var(--text); }
 .sidebar a.active { background: var(--accent-dim); color: var(--accent); }
+.sidebar-box {
+  margin-top: 12px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+}
+.sidebar-box a { display: block; }
 
 .main { flex: 1; padding: 28px 32px; max-width: 1200px; }
 h1 { font-size: 22px; margin: 0 0 4px; }
