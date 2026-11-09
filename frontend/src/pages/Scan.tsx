@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   appendLiveFinding,
   appendLog,
@@ -219,12 +220,18 @@ export default function Scan() {
   const [maxProbes, setMaxProbes] = useState("300");
   const [includeSubdomains, setIncludeSubdomains] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
   const logRef = useRef<HTMLDivElement>(null);
 
   // Scan progress state lives in the module-level store — it survives
   // navigating to other pages and back while a scan is still running.
   const snap = useSyncExternalStore(subscribeScan, getScanState);
   const { logs, liveFindings, results, queue, scanning, error } = snap;
+
+  useEffect(() => {
+    const t = searchParams.get("target");
+    if (t) setTarget(t);
+  }, [searchParams]);
 
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });

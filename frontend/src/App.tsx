@@ -7,6 +7,7 @@ import UsageLogs from "./pages/UsageLogs";
 import Tools from "./pages/Tools";
 import Findings from "./pages/Findings";
 import IncidentResponse from "./pages/IncidentResponse";
+import BugBounty from "./pages/BugBounty";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <NavLink to="/scan">Scan Target</NavLink>
         <NavLink to="/tools">Recon Tools</NavLink>
         <NavLink to="/findings">Findings Database</NavLink>
+        <NavLink to="/bugbounty">Bug Bounty</NavLink>
         <NavLink to="/ai-config">AI Configuration</NavLink>
         <NavLink to="/ai-playground">AI Playground</NavLink>
         <NavLink to="/usage-logs">Usage Logs</NavLink>
@@ -31,6 +33,7 @@ export default function App() {
           <Route path="/scan" element={<Scan />} />
           <Route path="/tools" element={<Tools />} />
           <Route path="/findings" element={<Findings />} />
+          <Route path="/bugbounty" element={<BugBounty />} />
           <Route path="/incidents" element={<IncidentResponse />} />
           <Route path="/ai-config" element={<AiConfiguration />} />
           <Route path="/ai-playground" element={<AiPlayground />} />

@@ -10,6 +10,7 @@ import { ProviderError } from "./providers/base.js";
 import { scanTarget } from "./scanner.js";
 import { portScan, dnsLookup, fetchRobots, httpMethodsProbe } from "./tools.js";
 import { handleFinding, listIncidents, createRule, updateRule, deleteRule, setIncidentStatus, clearIncidents, testWebhook, quarantineStatus, releaseQuarantine, initIncidentStore, addWhitelist, removeWhitelist } from "./incident.js";
+import { saveCreds, hasCreds, listPrograms, programScope } from "./bugbounty.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -519,6 +520,37 @@ app.post("/api/incidents/test-webhook", async (req, res) => {
   if (!/^https?:\/\//i.test(url)) return res.status(400).json({ ok: false, error: "Invalid webhook URL" });
   const r = await testWebhook(req.body ?? {});
   res.json({ ok: r.ok, status: r.status, error: r.error });
+});
+
+// ---------- Bug Bounty platform integration ----------
+
+app.post("/api/bounty/credentials", (req, res) => {
+  const platform = String(req.body?.platform ?? "");
+  if (!["hackerone", "yeswehack"].includes(platform)) {
+    return res.status(400).json({ ok: false, error: "platform must be hackerone or yeswehack" });
+  }
+  res.json(saveCreds(platform, req.body ?? {}));
+});
+
+app.get("/api/bounty/status", (req, res) => {
+  res.json({ hackerone: hasCreds("hackerone"), yeswehack: hasCreds("yeswehack") });
+});
+
+app.get("/api/bounty/programs", async (req, res) => {
+  const platform = String(req.query.platform ?? "hackerone");
+  const r = await listPrograms(platform, {
+    pageSize: Math.min(parseInt(req.query.size, 10) || 25, 100),
+    page: parseInt(req.query.page, 10) || 1,
+    query: String(req.query.q ?? ""),
+  });
+  if (r.error) return res.status(r.needCreds ? 428 : 502).json({ ok: false, ...r });
+  res.json({ ok: true, ...r });
+});
+
+app.get("/api/bounty/programs/:platform/:handle/scope", async (req, res) => {
+  const r = await programScope(req.params.platform, req.params.handle);
+  if (r.error) return res.status(r.needCreds ? 428 : 502).json({ ok: false, ...r });
+  res.json({ ok: true, ...r });
 });
 
 app.delete("/api/quarantine/:origin", (req, res) => {

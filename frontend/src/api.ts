@@ -81,6 +81,12 @@ export const api = {
   releaseQuarantine: (origin: string) => req(`/api/quarantine/${encodeURIComponent(origin)}`, { method: "DELETE" }),
   addWhitelist: (origin: string) => req("/api/quarantine-whitelist", { method: "POST", body: JSON.stringify({ origin }) }),
   removeWhitelist: (origin: string) => req(`/api/quarantine-whitelist/${encodeURIComponent(origin)}`, { method: "DELETE" }),
+  bountyStatus: () => req<{ hackerone: boolean; yeswehack: boolean }>("/api/bounty/status"),
+  saveBountyCreds: (body: any) => req("/api/bounty/credentials", { method: "POST", body: JSON.stringify(body) }),
+  bountyPrograms: (platform: string, q = "", page = 1) =>
+    req<{ ok: boolean; programs?: any[]; error?: string; needCreds?: boolean }>(`/api/bounty/programs?platform=${platform}&q=${encodeURIComponent(q)}&page=${page}`),
+  bountyScope: (platform: string, handle: string) =>
+    req<{ ok: boolean; scopes?: any[]; error?: string; needCreds?: boolean }>(`/api/bounty/programs/${platform}/${encodeURIComponent(handle)}/scope`),
 };
 
 export const PROVIDER_ICONS: Record<string, string> = {
