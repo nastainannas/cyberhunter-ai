@@ -6,8 +6,8 @@ from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
 
 ASSETS = r"C:\Users\ADMPROD-05-PC\Documents\project\hack\submission-assets"
-OUT = ASSETS + r"\cyberhunter-ai-platform.pptx"
-OUT2 = ASSETS + r"\cyberhunter-ai-platform-v4.pptx"
+OUT = ASSETS + r"\cyberhunter-ai-platform-v4.pptx"
+OUT2 = ASSETS + r"\cyberhunter-ai-platform-v5.pptx"
 
 BG     = RGBColor(0x0A, 0x0E, 0x13)   # plain black
 PANEL  = RGBColor(0x13, 0x1A, 0x24)
@@ -27,7 +27,7 @@ prs = Presentation()
 prs.slide_width  = Inches(13.333)
 prs.slide_height = Inches(7.5)
 BLANK = prs.slide_layouts[6]
-TOTAL = 14
+TOTAL = 16
 
 
 def slide():
@@ -135,6 +135,25 @@ def shot(s, path, l, t, w, caption=None):
         run(p, caption, size=12, color=BLUE2, bold=True)
     return h
 
+
+
+def term(s, l, t, w, h, lines):
+    """mock terminal card for install commands"""
+    rrect(s, Inches(l), Inches(t), Inches(w), Inches(h), fill=RGBColor(0x0D,0x14,0x1D), line=LINE, radius=0.04)
+    rect(s, Inches(l), Inches(t), Inches(w), Inches(0.4), PANEL2)
+    for i, c in enumerate([RED, RGBColor(0xF0,0xB4,0x29), GREEN]):
+        d = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(l) + Inches(0.16 + i*0.26), Inches(t) + Inches(0.13), Inches(0.14), Inches(0.14))
+        d.fill.solid(); d.fill.fore_color.rgb = c; d.line.fill.background(); d.shadow.inherit = False
+    f = tb(s, Inches(l + 0.3), Inches(t + 0.55), Inches(w - 0.6), Inches(h - 0.7))
+    first = True
+    for cmd, kind in lines:
+        p = f.paragraphs[0] if first and not f.paragraphs[0].runs else f.add_paragraph()
+        p.space_after = Pt(8)
+        pre = {"cmd": "$ ", "ok": "✓ ", "info": "# "}.get(kind, "")
+        col = {"cmd": RGBColor(0x7D,0xE8,0xA8), "ok": GREEN, "info": DIM}.get(kind, WHITE)
+        run(p, pre, size=13, color=col, bold=True, font="Consolas")
+        run(p, cmd, size=13, color=WHITE if kind != "info" else DIM, font="Consolas")
+        first = False
 
 def side_slide(s, n, kicker, title, left_fn, img, caption, img_l=6.35, img_t=1.7, img_w=6.35):
     chrome(s, n, kicker, title)
@@ -336,6 +355,47 @@ def l12():
 side_slide(s, 12, "Stack", "Teknologi", l12, "ai-config.png",
            "AI Configuration — 6 provider model")
 
+# ================= 13 · CARA DOWNLOAD =================
+s = slide()
+chrome(s, 13, "Instalasi", "Cara Download")
+def l_dl():
+    bullets(s, [
+        ("Repository GitHub", "github.com/nastainannas/cyberhunter-ai — public, langsung bisa di-clone."),
+        ("Opsi 1 — Git clone", "git clone https://github.com/nastainannas/cyberhunter-ai.git lalu cd cyberhunter-ai."),
+        ("Opsi 2 — Download ZIP", "GitHub → Code → Download ZIP → extract ke folder project."),
+        ("Prasyarat", "Node.js 18+ dan npm — cek dengan node -v && npm -v di terminal."),
+    ], size=14)
+l_dl()
+term(s, Inches(6.35), Inches(1.75), Inches(6.3), Inches(4.6), [
+    ("git clone https://github.com/nastainannas/cyberhunter-ai.git", "cmd"),
+    ("cd cyberhunter-ai", "cmd"),
+    ("node -v   # cek Node.js 18+", "info"),
+    ("npm -v", "info"),
+    ("Struktur: backend/ + frontend/", "ok"),
+])
+shot_cap = None
+
+# ================= 14 · CARA INSTAL =================
+s = slide()
+chrome(s, 14, "Instalasi", "Cara Instal & Menjalankan")
+def l_in():
+    bullets(s, [
+        ("Backend dulu", "cd backend → npm install → npm start. API jalan di http://localhost:8787"),
+        ("Frontend", "cd frontend → npm install → npm run dev. UI terbuka di http://localhost:5173"),
+        ("Pertama kali", "npm install mengunduh semua dependency (±1–2 menit)."),
+        ("Konfigurasi AI (opsional)", "Buka halaman AI Configuration → pilih provider → isi API key → Test Connection."),
+        ("Mulai scan", "Scan Target → masukkan URL → pilih mode Passive/Active → Start Scan."),
+    ], size=13.5)
+l_in()
+term(s, Inches(6.35), Inches(1.75), Inches(6.3), Inches(4.6), [
+    ("cd backend", "cmd"),
+    ("npm install", "cmd"),
+    ("npm start        # API → :8787", "ok"),
+    ("cd ../frontend", "cmd"),
+    ("npm install", "cmd"),
+    ("npm run dev      # UI → :5173", "ok"),
+])
+
 # ================= 13 · ROADMAP =================
 s = slide()
 def l13():
@@ -353,7 +413,7 @@ def l13():
         p = f.paragraphs[0]
         run(p, h + "\n", size=13.5, color=c, bold=True, font=FH)
         run(p, b, size=11.5, color=WHITE)
-side_slide(s, 13, "Pengembangan", "Roadmap", l13, "thumbnail.png",
+side_slide(s, 15, "Pengembangan", "Roadmap", l13, "thumbnail.png",
            "CYBERHUNTER AI")
 
 # ================= 14 · PENUTUP =================
