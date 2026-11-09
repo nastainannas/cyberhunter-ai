@@ -7,7 +7,7 @@ from pptx.enum.shapes import MSO_SHAPE
 
 ASSETS = r"C:\Users\ADMPROD-05-PC\Documents\project\hack\submission-assets"
 OUT = ASSETS + r"\cyberhunter-ai-platform-v4.pptx"
-OUT2 = ASSETS + r"\cyberhunter-ai-platform-v5.pptx"
+OUT2 = ASSETS + r"\cyberhunter-ai-platform-v6.pptx"
 
 BG     = RGBColor(0x0A, 0x0E, 0x13)   # plain black
 PANEL  = RGBColor(0x13, 0x1A, 0x24)
@@ -27,7 +27,7 @@ prs = Presentation()
 prs.slide_width  = Inches(13.333)
 prs.slide_height = Inches(7.5)
 BLANK = prs.slide_layouts[6]
-TOTAL = 16
+TOTAL = 17
 
 
 def slide():
@@ -355,9 +355,43 @@ def l12():
 side_slide(s, 12, "Stack", "Teknologi", l12, "ai-config.png",
            "AI Configuration — 6 provider model")
 
+# ================= 13 · ARSITEKTUR =================
+s = slide()
+chrome(s, 13, "Arsitektur", "System Design")
+layers = [
+    ("FRONTEND", "React 18 + TypeScript + Vite", "Dashboard · Scan Console · Findings · AI Configuration · Laporan HTML", BLUE),
+    ("BACKEND", "Node.js + Express (REST API + SSE live log)", "crawler.js · scanner.js · cve.js · domxss.js · challenge.js · db.js", RED),
+    ("DATA & AI", "Findings DB (JSON persisten) + 6 AI Provider", "OpenAI-compatible · Anthropic · Gemini · Ollama · LM Studio · EdgeOne", GREEN),
+]
+for i, (tag_, sub, body, c) in enumerate(layers):
+    t = Inches(1.65 + i * 1.62)
+    rrect(s, Inches(1.6), t, Inches(10.1), Inches(1.35), fill=PANEL, line=LINE)
+    rect(s, Inches(1.6), t + Inches(0.12), Inches(0.07), Inches(1.11), c)
+    f = tb(s, Inches(2.0), t + Inches(0.14), Inches(9.5), Inches(1.1))
+    f.vertical_anchor = MSO_ANCHOR.MIDDLE
+    p = f.paragraphs[0]
+    run(p, tag_ + "   ", size=15, color=c, bold=True, font=FH)
+    run(p, sub, size=14, color=BLUE2, bold=True)
+    p2 = f.add_paragraph(); p2.space_before = Pt(3)
+    run(p2, body, size=12.5, color=WHITE)
+    if i < 2:
+        ar = s.shapes.add_shape(MSO_SHAPE.DOWN_ARROW, Inches(6.4), t + Inches(1.38), Inches(0.5), Inches(0.3))
+        ar.fill.solid(); ar.fill.fore_color.rgb = LINE; ar.line.fill.background(); ar.shadow.inherit = False
+# side annotation
+f = tb(s, Inches(0.85), Inches(1.7), Inches(0.6), Inches(5))
+rrect(s, Inches(11.9), Inches(1.7), Inches(0.7), Inches(4.6), fill=PANEL2, line=LINE)
+f2 = tb(s, Inches(11.95), Inches(1.85), Inches(0.6), Inches(4.4))
+for j, (txt, col) in enumerate([("Scan", BLUE2), ("Probe", RED), ("Verify", GREEN), ("Report", BLUE)]):
+    p = f2.paragraphs[0] if j == 0 and not f2.paragraphs[0].runs else f2.add_paragraph()
+    p.space_after = Pt(16); p.alignment = PP_ALIGN.CENTER
+    run(p, txt, size=11, color=col, bold=True, font=FH)
+f3 = tb(s, Inches(0.85), Inches(6.5), Inches(11.6), Inches(0.45))
+p = f3.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
+run(p, "Frontend → REST API / SSE → Scanner Engine → Findings DB → Report Engine → AI Analysis", size=13, color=DIM, bold=True)
+
 # ================= 13 · CARA DOWNLOAD =================
 s = slide()
-chrome(s, 13, "Instalasi", "Cara Download")
+chrome(s, 14, "Instalasi", "Cara Download")
 def l_dl():
     bullets(s, [
         ("Repository GitHub", "github.com/nastainannas/cyberhunter-ai — public, langsung bisa di-clone."),
@@ -377,7 +411,7 @@ shot_cap = None
 
 # ================= 14 · CARA INSTAL =================
 s = slide()
-chrome(s, 14, "Instalasi", "Cara Instal & Menjalankan")
+chrome(s, 15, "Instalasi", "Cara Instal & Menjalankan")
 def l_in():
     bullets(s, [
         ("Backend dulu", "cd backend → npm install → npm start. API jalan di http://localhost:8787"),
@@ -413,7 +447,7 @@ def l13():
         p = f.paragraphs[0]
         run(p, h + "\n", size=13.5, color=c, bold=True, font=FH)
         run(p, b, size=11.5, color=WHITE)
-side_slide(s, 15, "Pengembangan", "Roadmap", l13, "thumbnail.png",
+side_slide(s, 16, "Pengembangan", "Roadmap", l13, "thumbnail.png",
            "CYBERHUNTER AI")
 
 # ================= 14 · PENUTUP =================
