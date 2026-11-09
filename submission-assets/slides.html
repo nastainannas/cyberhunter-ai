@@ -1,0 +1,164 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>CYBERHUNTER AI — Slide Deck</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; background:#0d1117; color:#e6edf3; }
+  .slide { width:1280px; height:720px; padding:70px 90px; page-break-after:always;
+           display:flex; flex-direction:column; justify-content:center; position:relative; overflow:hidden; }
+  .slide::before { content:""; position:absolute; inset:0;
+    background: radial-gradient(900px 400px at 85% -10%, rgba(88,166,255,.14), transparent 60%),
+                radial-gradient(700px 400px at -10% 110%, rgba(63,185,80,.10), transparent 60%); }
+  .slide > * { position:relative; }
+  h1 { font-size:64px; letter-spacing:2px; color:#58a6ff; }
+  h2 { font-size:44px; color:#58a6ff; margin-bottom:36px; }
+  h3 { font-size:26px; color:#8b98ab; margin:26px 0 10px; text-transform:uppercase; letter-spacing:2px; }
+  p, li { font-size:24px; line-height:1.55; color:#c9d1d9; }
+  ul { list-style:none; }
+  li { padding-left:26px; position:relative; margin:10px 0; }
+  li::before { content:"▸"; position:absolute; left:0; color:#3fb950; }
+  .accent { color:#3fb950; } .warn { color:#f85149; } .dim { color:#8b98ab; font-size:20px; }
+  .brand { position:absolute; top:36px; left:90px; font-weight:700; letter-spacing:2px; color:#58a6ff; font-size:20px; }
+  .pageno { position:absolute; bottom:30px; right:50px; color:#8b98ab; font-size:16px; }
+  .card { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:22px 28px; margin:12px 0; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  code { background:#161b22; border:1px solid #30363d; border-radius:6px; padding:2px 10px; font-family:Consolas,monospace; font-size:20px; color:#79c0ff; }
+  .big { font-size:34px; font-weight:700; }
+  table { border-collapse:collapse; width:100%; }
+  td, th { border:1px solid #30363d; padding:12px 16px; font-size:20px; text-align:left; }
+  th { background:#161b22; color:#58a6ff; }
+  @media print { .slide { page-break-after:always; } }
+</style></head><body>
+
+<div class="slide">
+  <div class="brand">CYBERHUNTER AI</div>
+  <h1>CYBERHUNTER AI</h1>
+  <p style="font-size:30px;margin-top:18px">Platform Automated Security Testing &amp; Bug Bounty</p>
+  <p class="dim" style="margin-top:40px">Mendeteksi kerentanan OWASP Top 10 secara aktif &amp; pasif — dari crawling, injeksi, hingga verifikasi berbasis browser</p>
+  <p class="dim" style="margin-top:60px">oleh <b style="color:#e6edf3">Nastain</b> · Ternakheck</p>
+  <div class="pageno">1</div>
+</div>
+
+<div class="slide">
+  <div class="brand">CYBERHUNTER AI</div>
+  <h2>Masalah</h2>
+  <ul>
+    <li>Scanner keamanan umumnya mahal, rumit, atau hanya mendeteksi <b>pasif</b> (headers, banner)</li>
+    <li>Bug bounty butuh <b>active probing</b>: SQLi, XSS, command injection — yang sulit dilakukan manual pada website besar</li>
+    <li>Crawler konvensional melewatkan parameter tersembunyi: POST body, JSON API, field hidden, endpoint yang tidak ter-link</li>
+    <li>Situs modern memakai anti-bot JS challenge (WAF splash) yang membuat scanner biasa buta total</li>
+    <li>Hasil scan mentah sulit dibaca — butuh evidence, payload persis, dan laporan siap-kirim</li>
+  </ul>
+  <div class="pageno">2</div>
+</div>
+
+<div class="slide">
+  <div class="brand">CYBERHUNTER AI</div>
+  <h2>Solusi</h2>
+  <p class="big accent">Satu platform web untuk security testing terotorisasi:</p>
+  <div class="grid" style="margin-top:30px">
+    <div class="card"><h3>Crawler Cerdas</h3><p>Crawl multi-halaman, subdomain, form, JS bundle — plus <b>parameter mining</b> (±75 nama param umum) dan <b>filename mutation</b> untuk endpoint tersembunyi.</p></div>
+    <div class="card"><h3>Active + Passive OWASP Top 10</h3><p>SQLi (error/blind/UNION extraction), XSS (reflected/stored/DOM via headless browser), command injection, LFI, SSRF, XXE, open redirect, CORS, security headers, exposed secrets.</p></div>
+    <div class="card"><h3>Anti-Bot Solver</h3><p>Challenge JavaScript (WAF splash) diselesaikan otomatis via headless Chromium — clearance cookie dibawa ke request berikutnya.</p></div>
+    <div class="card"><h3>Report &amp; Evidence</h3><p>Setiap temuan menyimpan payload pemicu, parameter, endpoint, request/response mentah, severity, confidence — diekspor sebagai laporan HTML bilingual (EN/ID) format XRay.</p></div>
+  </div>
+  <div class="pageno">3</div>
+</div>
+
+<div class="slide">
+  <div class="brand">CYBERHUNTER AI</div>
+  <h2>Cakupan Parameter — "Jangan Ada yang Kelewat"</h2>
+  <table>
+    <tr><th>Sumber Parameter</th><th>Status</th></tr>
+    <tr><td>Query string (semua link crawled)</td><td class="accent">✓</td></tr>
+    <tr><td>Form GET/POST — input, select, textarea, hidden non-CSRF</td><td class="accent">✓</td></tr>
+    <tr><td>JSON &amp; XML body (API endpoints)</td><td class="accent">✓</td></tr>
+    <tr><td>HTTP headers (UA, Referer, X-Forwarded-*)</td><td class="accent">✓</td></tr>
+    <tr><td>Cookies</td><td class="accent">✓</td></tr>
+    <tr><td>Param tersembunyi di file .js (fetch/axios/route)</td><td class="accent">✓ JS mining</td></tr>
+    <tr><td>Param nama umum di endpoint tanpa query</td><td class="accent">✓ Parameter mining (±75 nama)</td></tr>
+    <tr><td>Endpoint file tak terduga (cetak/, unduh/, detail.php…)</td><td class="accent">✓ Wordlist + subdir probing + filename mutation</td></tr>
+  </table>
+  <div class="pageno">4</div>
+</div>
+
+<div class="slide">
+  <div class="brand">CYBERHUNTER AI</div>
+  <h2>Deteksi Vulnerability</h2>
+  <div class="grid">
+    <div class="card"><h3>SQL Injection</h3><p>Error-based (multi-DBMS pattern), <b>time-based blind</b> dengan konfirmasi ganda anti-false-positive, dan <b>UNION extraction</b> hingga 15 kolom dengan marker database.</p></div>
+    <div class="card"><h3>XSS</h3><p>Reflected, stored, dan <b>DOM XSS diverifikasi via browser headless</b> — payload harus benar-benar mengeksekusi, bukan sekadar ter-reflect.</p></div>
+    <div class="card"><h3>Command Injection</h3><p>Marker aritmatika <code>CYBERHUNTER_$((7*7))</code> → output <code>CYBERHUNTER_49</code> — mustahil muncul dari refleksi biasa.</p></div>
+    <div class="card"><h3>CVE Surface</h3><p>Fingerprint versi PHP/CMS → ruleset CVE (php2shell CVE-2026-109618/619, Drupalgeddon2, Joomla, Laravel, WordPress, phpMyAdmin, ThinkPHP…) + verifikasi aktif read-only.</p></div>
+  </div>
+  <div class="pageno">5</div>
+</div>
+
+<div class="slide">
+  <div class="brand">CYBERHUNTER AI</div>
+  <h2>Arsitektur</h2>
+  <div class="card" style="font-family:Consolas,monospace;font-size:19px;line-height:1.9">
+    <span class="accent">Frontend</span> — React + TypeScript + Vite (Dashboard, Scan, Findings, AI Config, Reports)<br>
+    <span class="accent">Backend</span> — Node.js + Express<br>
+    &nbsp;&nbsp;├─ crawler.js&nbsp;&nbsp;: crawl, extract links/forms/params, anti-bot challenge solver (Puppeteer)<br>
+    &nbsp;&nbsp;├─ scanner.js&nbsp;: probe engine OWASP Top 10, parameter mining, adaptive timeout<br>
+    &nbsp;&nbsp;├─ cve.js&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: fingerprint teknologi + ruleset CVE + php2shell probe<br>
+    &nbsp;&nbsp;├─ domxss.js&nbsp;: verifikasi DOM XSS via Chromium<br>
+    &nbsp;&nbsp;└─ db.js&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: persistence JSON (findings, providers, logs)<br>
+    <span class="accent">AI Layer</span> — multi-provider (OpenAI-compatible, Anthropic, Gemini, Ollama, LM Studio, EdgeOne) untuk analisis &amp; laporan
+  </div>
+  <div class="pageno">6</div>
+</div>
+
+<div class="slide">
+  <div class="brand">CYBERHUNTER AI</div>
+  <h2>Teknologi</h2>
+  <div class="grid">
+    <div class="card"><h3>Frontend</h3><p>React 18, TypeScript, Vite, React Router — dark-theme dashboard, live scan log streaming, grafik severity yang bisa diklik.</p></div>
+    <div class="card"><h3>Backend</h3><p>Node.js ES modules, Express, undici fetch manual-redirect, Puppeteer (Chromium) untuk challenge solver &amp; DOM verification.</p></div>
+    <div class="card"><h3>Deteksi</h3><p>~90 payload SQLi/XSS/cmdi/LFI/SSRF/XXE, 75+ nama parameter mining, 60+ path wordlist + filename mutation, adaptive timeout untuk target lambat/WAF.</p></div>
+    <div class="card"><h3>AI Providers</h3><p>6 provider model (cloud &amp; lokal) — konfigurasi per-provider, model selector, playground, usage logs terenkripsi.</p></div>
+  </div>
+  <div class="pageno">7</div>
+</div>
+
+<div class="slide">
+  <div class="brand">CYBERHUNTER AI</div>
+  <h2>Hasil &amp; Bukti</h2>
+  <ul>
+    <li>Scan aktif terhadap aplikasi PHP gov (PPID Brebes) menemukan <b>40+ parameter injectable</b> — SQL error "Illegal mix of collations" terkonfirmasi manual</li>
+    <li>Scan terhadap situs Joomla ber-WAF (PA Sibolga): anti-bot challenge ter-solve otomatis, crawl berhasil menembus splash page</li>
+    <li>Setiap finding menyimpan: <b>URL, parameter, lokasi (query/body/header/cookie), payload persis, evidence, request &amp; response mentah</b></li>
+    <li>Export laporan HTML bilingual (EN/ID) format XRay — summary table + detail Request1/Response1 per finding</li>
+    <li>Findings persisten di database lokal + dashboard severity chart + filter</li>
+  </ul>
+  <div class="pageno">8</div>
+</div>
+
+<div class="slide">
+  <div class="brand">CYBERHUNTER AI</div>
+  <h2>Etika &amp; Keamanan</h2>
+  <ul>
+    <li>Active probing <b>hanya untuk sistem milik sendiri atau dengan otorisasi tertulis</b> — gating eksplisit di UI</li>
+    <li>Cookie session di-scope per-origin — tidak pernah bocor ke domain lain</li>
+    <li>Nilai cookie disensor di log, database, dan laporan export</li>
+    <li>Payload non-destruktif: marker aritmatika, canary string, error-based — tanpa exploit berbahaya</li>
+    <li>robots.txt disrespect — deteksi "Disallow: /" menghasilkan peringatan scope</li>
+    <li>Rate limiting via request delay yang dapat diatur (0–500ms+)</li>
+  </ul>
+  <div class="pageno">9</div>
+</div>
+
+<div class="slide">
+  <div class="brand">CYBERHUNTER AI</div>
+  <h2>Roadmap</h2>
+  <ul>
+    <li><b>Jangka pendek</b>: Nuclei template integration, authenticated scan wizard, report PDF export</li>
+    <li><b>Menengah</b>: distributed scanning queue, authenticated crawling (login multi-step), GraphQL fuzzing mendalam</li>
+    <li><b>Jangka panjang</b>: plugin system untuk check custom, integrasi bug-bounty platform (HackerOne/Bugcrowd scope sync), AI-assisted triage findings</li>
+  </ul>
+  <h3 style="margin-top:34px">Terima kasih</h3>
+  <p class="dim">CYBERHUNTER AI — github.com/nastainannas/cyberhunter-ai</p>
+  <div class="pageno">10</div>
+</div>
+
+</body></html>
