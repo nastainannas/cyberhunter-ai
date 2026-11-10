@@ -329,7 +329,9 @@ export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode =
         if (r.error || !r.programs?.length) break;
         for (const p of r.programs) {
           job.programs_seen++;
-          if (p.state !== "public_mode" || p.submission_state !== "open") continue;
+          // hackerone: public_mode+open; scraped yeswehack: state "public", submission_state "open"
+          if (!["public_mode", "public", "unknown"].includes(p.state)) continue;
+          if (p.submission_state && p.submission_state !== "open") continue;
           if (seen.has(p.handle)) continue;
           seen.add(p.handle);
           candidates.push(p);
