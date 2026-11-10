@@ -1674,9 +1674,20 @@ async function verifySecret(name, secret) {
       return `invalid/expired (HTTP ${r.status})`;
     }
     if (/Google API key/i.test(name)) {
-      const r = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=test&key=${secret}`, { signal: t });
-      const j = await r.json().catch(() => ({}));
-      return j.status === "OK" ? "VALID — Geocoding API calls succeed (billable quota abuse possible)" : `restricted or invalid (${j.status ?? r.status})`;
+      const active = [];
+      const denied = [];
+      // test matrix of billable Google APIs — a denied geocode does not mean the key is dead
+      const geo = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=test&key=${secret}`, { signal: t }).catch(() => null);
+      const geoJ = geo ? await geo.json().catch(() => ({})) : {};
+      geoJ.status === "OK" ? active.push("Geocoding") : denied.push(`Geocoding:${geoJ.status ?? "fail"}`);
+      const sm = await fetch(`https://maps.googleapis.com/maps/api/staticmap?center=0,0&zoom=1&size=100x100&key=${secret}`, { signal: t }).catch(() => null);
+      const smType = sm?.headers?.get("content-type") ?? "";
+      smType.includes("image") ? active.push("StaticMaps") : denied.push("StaticMaps:denied");
+      const yt = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=test&maxResults=1&key=${secret}`, { signal: t }).catch(() => null);
+      const ytJ = yt ? await yt.json().catch(() => ({})) : {};
+      ytJ.items ? active.push("YouTubeData") : denied.push("YouTube:off");
+      if (active.length) return `VALID — active APIs: ${active.join(", ")} (billable quota abuse possible; denied: ${denied.join(", ")})`;
+      return `restricted or invalid (${denied.join(", ")})`;
     }
     if (/Stripe secret/i.test(name)) {
       const r = await fetch("https://api.stripe.com/v1/balance", { headers: { Authorization: `Bearer ${secret}` }, signal: t });
