@@ -158,7 +158,7 @@ export default function BugBounty() {
             </p>
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <label style={{ fontSize: 13 }}>Programs:
-                <input type="number" min={1} max={20} value={huntCfg.maxPrograms}
+                <input type="number" min={1} max={50} value={huntCfg.maxPrograms}
                   onChange={(e) => setHuntCfg({ ...huntCfg, maxPrograms: parseInt(e.target.value, 10) || 1 })}
                   style={{ width: 60, marginLeft: 6 }} />
               </label>
@@ -190,6 +190,7 @@ export default function BugBounty() {
                           color: t.status === "done" ? "var(--info)" : t.status === "error" ? "var(--danger)" : "var(--warn)",
                         }}>{t.status}</span>
                         <code style={{ flex: 1 }}>{t.target}</code>
+                        {t.wildcard && <span className="tag" style={{ color: "var(--warn)" }}>+subdomains</span>}
                         <span className="tag">{t.program}</span>
                         {t.findings != null && <span className="tag">{t.findings} findings</span>}
                         {t.error && <span style={{ color: "var(--danger)" }}>{t.error}</span>}

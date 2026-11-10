@@ -556,7 +556,7 @@ app.get("/api/bounty/programs/:platform/:handle/scope", async (req, res) => {
 app.post("/api/bounty/auto-hunt", (req, res) => {
   const r = autoHunt({
     platform: String(req.body?.platform ?? "hackerone"),
-    maxPrograms: Math.min(parseInt(req.body?.maxPrograms, 10) || 5, 20),
+    maxPrograms: Math.min(parseInt(req.body?.maxPrograms, 10) || 5, 50),
     mode: req.body?.mode === "active" ? "active" : "passive",
     maxPages: Math.min(parseInt(req.body?.maxPages, 10) || 25, 100),
     requestDelayMs: Math.min(parseInt(req.body?.requestDelayMs, 10) || 300, 5000),

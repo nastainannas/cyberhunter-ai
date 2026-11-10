@@ -169,15 +169,21 @@ const SCOPED_TYPES = new Set(["url", "domain", "wildcard"]);
 function scopeToTarget(asset) {
   const a = String(asset.asset_identifier ?? "").trim();
   if (!a) return null;
-  // explicit URL
+  // explicit URL — may itself contain a wildcard host
   if (/^https?:\/\//i.test(a)) {
-    try { return new URL(a).origin; } catch { return null; }
+    try {
+      const u = new URL(a);
+      const wild = u.hostname.startsWith("*.");
+      if (wild) u.hostname = u.hostname.slice(2);
+      return { target: u.origin, wildcard: wild };
+    } catch { return null; }
   }
-  // wildcard/domain — use apex-ish base (strip leading *.)
+  // wildcard/domain — *.example.com means "example.com + all subdomains"
+  const wild = /^\*\./.test(a);
   const host = a.replace(/^\*\./, "").replace(/^\./, "").replace(/\/.*$/, "");
   if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(host)) return null;
   if (/\s/.test(host) || host.includes("@")) return null;
-  return "https://" + host;
+  return { target: "https://" + host, wildcard: wild };
 }
 
 export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode = "passive", maxPages = 25, requestDelayMs = 300 } = {}) {
@@ -225,13 +231,15 @@ export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode =
         if (sc.error || !sc.scopes) continue;
         for (const s of sc.scopes) {
           if (!SCOPED_TYPES.has((s.asset_type ?? "").toLowerCase())) continue;
-          const t = scopeToTarget(s);
-          if (!t) continue;
+          const st = scopeToTarget(s);
+          if (!st) continue;
+          const t = st.target;
           const origin = (() => { try { return new URL(t).origin; } catch { return t; } })();
           if (isWhitelisted(origin)) continue;
           if (quarantineStatus(t)) continue;
-          if (targets.some((x) => x.target === t)) continue;
-          targets.push({ target: t, program: p.name, program_url: p.url, asset: s.asset_identifier });
+          const dup = targets.find((x) => x.target === t);
+          if (dup) { dup.wildcard = dup.wildcard || st.wildcard; continue; }
+          targets.push({ target: t, wildcard: st.wildcard, program: p.name, program_url: p.url, asset: s.asset_identifier });
         }
       }
       job.status = "scanning";
@@ -248,6 +256,7 @@ export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode =
             mode,
             maxPages,
             requestDelayMs,
+            includeSubdomains: !!t.wildcard,
             onFinding: (f) => { handleFinding(f, t.target).catch(() => {}); },
           });
           rec.status = res.ok ? "done" : "error";
