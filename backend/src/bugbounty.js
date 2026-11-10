@@ -186,7 +186,32 @@ function scopeToTarget(asset) {
   return { target: "https://" + host, wildcard: wild };
 }
 
-export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode = "passive", maxPages = 25, requestDelayMs = 300 } = {}) {
+function persistScan(t, res, mode) {
+  if (!res?.ok) return;
+  const db = getDb();
+  db.findings ??= [];
+  db.findings.unshift({
+    id: crypto.randomUUID(),
+    created_at: new Date().toISOString(),
+    target: res.target ?? t.target,
+    mode: res.mode ?? mode,
+    status: res.status ?? 0,
+    elapsed_ms: res.elapsed_ms ?? 0,
+    pages_crawled: res.pages_crawled ?? 0,
+    params_tested: res.params_tested ?? [],
+    authenticated: !!res.authenticated,
+    cancelled: !!res.cancelled,
+    live: false,
+    program: t.program,
+    program_url: t.program_url,
+    summary: res.summary,
+    findings: res.findings ?? [],
+  });
+  if (db.findings.length > 200) db.findings.length = 200;
+  saveDbNow();
+}
+
+export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode = "passive", maxPages = 25, requestDelayMs = 300, perTargetTimeoutMs = 8 * 60 * 1000 } = {}) {
   if (huntState.running) return { error: "A hunt is already running" };
   const c = creds(platform);
   if (!c) return { error: `No ${platform} credentials configured`, needCreds: true };
@@ -251,45 +276,32 @@ export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode =
         job.current = t.target;
         const rec = { ...t, status: "scanning", findings: 0, started_at: new Date().toISOString() };
         job.targets.push(rec);
+        let scanP = null;
         try {
-          const res = await scanTarget(t.target, {
+          let cancelled = false;
+          scanP = scanTarget(t.target, {
             mode,
             maxPages,
             requestDelayMs,
             includeSubdomains: !!t.wildcard,
+            isCancelled: () => cancelled,
             onFinding: (f) => { handleFinding(f, t.target).catch(() => {}); },
           });
+          // per-target timeout — a stuck/huge target must not block the queue
+          const res = await Promise.race([
+            scanP,
+            new Promise((_, rej) => setTimeout(() => { cancelled = true; rej(new Error(`timeout after ${Math.round(perTargetTimeoutMs / 60000)}min`)); }, perTargetTimeoutMs)),
+          ]);
           rec.status = res.ok ? "done" : "error";
           rec.findings = res.findings?.length ?? res.summary?.total ?? 0;
           rec.error = res.ok ? undefined : res.error;
           rec.summary = res.summary;
-          // persist the full scan record so it appears in Findings Database
-          if (res.ok) {
-            const db = getDb();
-            db.findings ??= [];
-            db.findings.unshift({
-              id: crypto.randomUUID(),
-              created_at: new Date().toISOString(),
-              target: res.target ?? t.target,
-              mode: res.mode ?? mode,
-              status: res.status ?? 0,
-              elapsed_ms: res.elapsed_ms ?? 0,
-              pages_crawled: res.pages_crawled ?? 0,
-              params_tested: res.params_tested ?? [],
-              authenticated: !!res.authenticated,
-              cancelled: !!res.cancelled,
-              live: false,
-              program: t.program,
-              program_url: t.program_url,
-              summary: res.summary,
-              findings: res.findings ?? [],
-            });
-            if (db.findings.length > 200) db.findings.length = 200;
-            saveDbNow();
-          }
+          persistScan(t, res, mode);
         } catch (e) {
           rec.status = "error";
           rec.error = e.message;
+          // if the scan resolves later (e.g. after timeout cancel), still persist partial results
+          scanP?.then((res2) => { if (res2?.ok) persistScan(t, res2, mode); }).catch(() => {});
         }
         rec.finished_at = new Date().toISOString();
         job.done++;
