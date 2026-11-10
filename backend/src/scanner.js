@@ -1731,23 +1731,31 @@ async function scanExposedSecrets(pages, origin, ftF, log, t0, findings, finding
       let m;
       while ((m = sp.re.exec(doc.text))) {
         const secret = m[sp.group ?? 0] ?? m[0];
+        // Heuristic: secrets inside <pre>/<code> documentation examples are
+        // usually sample data, not real credentials — downgrade to info.
+        const before = doc.text.slice(Math.max(0, m.index - 400), m.index);
+        const inPre = (before.match(/<pre[\s>]/gi) ?? []).length > (before.match(/<\/pre>/gi) ?? []).length;
+        const docLike = /\/(docs|doc|documentation|reference|examples|sample|demo)\//i.test(new URL(doc.url).pathname);
+        const isExample = inPre || docLike;
         const key = `${sp.name}:${secret.slice(0, 12)}`;
         if (seen.has(key)) continue;
         seen.add(key);
         const masked = secret.length > 10 ? `${secret.slice(0, 6)}…${secret.slice(-4)}` : "***";
-        const ver = await verifySecret(sp.name, secret);
+        const ver = isExample ? null : await verifySecret(sp.name, secret);
         findings.push(finding({
-          title: `Exposed ${sp.name} in client-side code (${new URL(doc.url).pathname})`,
-          severity: sp.sev === "critical" ? "critical" : sp.sev === "high" ? "high" : "medium",
+          title: `Exposed ${sp.name} in client-side code (${new URL(doc.url).pathname})${isExample ? " — likely documentation example" : ""}`,
+          severity: isExample ? "info" : sp.sev === "critical" ? "critical" : sp.sev === "high" ? "high" : "medium",
           category: "exposure", owasp: "A02:2021 Cryptographic Failures",
           description: `A ${sp.name.toLowerCase()} is hardcoded in publicly served JavaScript/HTML — anyone can extract and abuse it.`,
           endpoint: doc.url, parameter: "N/A", vector: "static-asset",
           payload: secret,
-          evidence: `${new URL(doc.url).pathname} contains ${sp.name}: ${masked}${ver ? ` — live verification: ${ver}` : ""}`,
+          evidence: `${new URL(doc.url).pathname} contains ${sp.name}: ${masked}${isExample ? " — inside documentation/example block, likely sample data" : ""}${ver ? ` — live verification: ${ver}` : ""}`,
           exploit: sp.name.includes("AWS") || sp.name.includes("Stripe") || sp.name.includes("Private")
             ? "Attacker extracts the key and uses it directly — cloud API access, payment charges, or server impersonation."
             : "Attacker extracts the credential and uses it to access the associated service/account.",
-          recommendation: "Remove secrets from client-side code; rotate the exposed credential immediately; move secrets server-side.",
+          recommendation: isExample
+            ? "Likely a documentation example — verify manually whether the credential is real before reporting; if real, rotate immediately."
+            : "Remove secrets from client-side code; rotate the exposed credential immediately; move secrets server-side.",
         }));
         log(`[${t0()}s] [!] Exposed ${sp.name} found in ${doc.url}`);
         break; // one finding per pattern per document is enough
