@@ -533,7 +533,8 @@ app.post("/api/bounty/credentials", (req, res) => {
 });
 
 app.get("/api/bounty/status", (req, res) => {
-  res.json({ hackerone: hasCreds("hackerone"), yeswehack: hasCreds("yeswehack") });
+  // YesWeHack works via public scraping without credentials
+  res.json({ hackerone: hasCreds("hackerone"), yeswehack: true });
 });
 
 app.get("/api/bounty/programs", async (req, res) => {

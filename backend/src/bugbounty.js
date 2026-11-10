@@ -131,17 +131,102 @@ export async function ywhPrograms(c, { pageSize = 25, page = 1 } = {}) {
   };
 }
 
+// ---------- YesWeHack public scraping (no credentials needed) ----------
+// The official API requires an approved OAuth app; the public program pages
+// are server-rendered HTML, so we parse them directly.
+
+const YWH_WEB = "https://yeswehack.com";
+const YWH_UA = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+  Accept: "text/html,application/xhtml+xml",
+};
+
+async function ywhFetchHtml(path) {
+  try {
+    const r = await fetch(`${YWH_WEB}${path}`, { headers: YWH_UA, signal: AbortSignal.timeout(25000), redirect: "follow" });
+    if (!r.ok) return { error: `yeswehack.com ${r.status}` };
+    return { html: await r.text() };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+function decodeHtml(s) {
+  return String(s)
+    .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n));
+}
+
+export async function ywhProgramsPublic({ page = 1 } = {}) {
+  const p = Math.max(1, page | 0);
+  const r = await ywhFetchHtml(`/programs?page=${p}`);
+  if (r.error) return r;
+  const seen = new Map();
+  const re = /<a[^>]+href="(\/programs\/[a-z0-9][a-z0-9-]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let m;
+  while ((m = re.exec(r.html))) {
+    const slug = m[1].split("/").pop();
+    if (seen.has(slug)) continue;
+    const txt = decodeHtml(m[2].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+    if (!txt || /^view program$/i.test(txt)) continue;
+    seen.set(slug, {
+      platform: "yeswehack",
+      handle: slug,
+      name: txt,
+      url: `${YWH_WEB}${m[1]}`,
+      bounty: true,
+      state: "public",
+      submission_state: "open",
+      via: "scrape",
+    });
+  }
+  const programs = [...seen.values()];
+  return { programs, total: programs.length, page: p, via: "scrape" };
+}
+
+export async function ywhScopePublic(slug) {
+  const r = await ywhFetchHtml(`/programs/${encodeURIComponent(slug)}`);
+  if (r.error) return r;
+  const scopes = [];
+  const re = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
+  let m;
+  while ((m = re.exec(r.html))) {
+    const row = m[1];
+    if (!/mat-column-scope|cdk-column-scope/.test(row)) continue;
+    const cells = [...row.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)]
+      .map((c) => decodeHtml(c[1].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim());
+    if (cells.length < 2) continue;
+    const [asset, type = "", value = ""] = cells;
+    if (!asset || /^(scope|asset)$/i.test(asset)) continue;
+    const t = type.toLowerCase();
+    // web-addressable assets only become scannable targets; mobile/hardware etc are kept but filtered downstream
+    const isWeb = /web|domain|url|api|application|site|service/i.test(t) && !/mobile|ios|android|hardware|iot/i.test(t);
+    scopes.push({
+      asset_identifier: asset,
+      asset_type: isWeb ? "url" : t || "other",
+      eligible_for_bounty: true,
+      eligible_for_submission: true,
+      instruction: `${type}${value ? ` · value: ${value}` : ""}`,
+      max_severity: "",
+    });
+  }
+  const uniq = [...new Map(scopes.map((s) => [s.asset_identifier + "|" + s.asset_type, s])).values()];
+  return { handle: slug, scopes: uniq, via: "scrape" };
+}
+
 // ---------- Dispatcher ----------
 
 export async function listPrograms(platform, opts = {}) {
+  if (platform === "yeswehack") return ywhProgramsPublic(opts); // public scrape — no creds needed
   const c = creds(platform);
   if (!c) return { error: `No ${platform} credentials configured`, needCreds: true };
   if (platform === "hackerone") return h1Programs(c, opts);
-  if (platform === "yeswehack") return ywhPrograms(c, opts);
   return { error: "Unknown platform" };
 }
 
 export async function programScope(platform, handle) {
+  if (platform === "yeswehack") return ywhScopePublic(handle);
   const c = creds(platform);
   if (!c) return { error: `No ${platform} credentials configured`, needCreds: true };
   if (platform === "hackerone") return h1Scope(c, handle);
@@ -215,7 +300,8 @@ function persistScan(t, res, mode) {
 export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode = "passive", maxPages = 25, requestDelayMs = 300, perTargetTimeoutMs = 8 * 60 * 1000, programType = "bounty" } = {}) {
   if (huntState.running) return { error: "A hunt is already running" };
   const c = creds(platform);
-  if (!c) return { error: `No ${platform} credentials configured`, needCreds: true };
+  // HackerOne needs API creds; YesWeHack works via public-page scraping without them
+  if (platform === "hackerone" && !c) return { error: `No ${platform} credentials configured`, needCreds: true };
 
   huntState.running = true;
   const job = {
@@ -239,7 +325,7 @@ export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode =
       const seen = new Set();
       const candidates = [];
       for (let page = 1; page <= 10 && candidates.length < maxPrograms; page++) {
-        const r = await h1Programs(c, { pageSize: 25, page, bounty: bountyFilter });
+        const r = await listPrograms(platform, { pageSize: 25, page, bounty: bountyFilter });
         if (r.error || !r.programs?.length) break;
         for (const p of r.programs) {
           job.programs_seen++;
@@ -255,7 +341,7 @@ export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode =
       // 2) collect in-scope URL assets
       const targets = [];
       for (const p of candidates) {
-        const sc = await h1Scope(c, p.handle);
+        const sc = await programScope(platform, p.handle);
         if (sc.error || !sc.scopes) continue;
         for (const s of sc.scopes) {
           if (!SCOPED_TYPES.has((s.asset_type ?? "").toLowerCase())) continue;
