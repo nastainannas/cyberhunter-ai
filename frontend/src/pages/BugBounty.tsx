@@ -15,7 +15,7 @@ export default function BugBounty() {
   const [scopes, setScopes] = useState<Record<string, any[]>>({});
   const [scopeLoading, setScopeLoading] = useState<Record<string, boolean>>({});
   const [hunt, setHunt] = useState<any>(null);
-  const [huntCfg, setHuntCfg] = useState({ maxPrograms: 5, mode: "passive" as "passive" | "active" });
+  const [huntCfg, setHuntCfg] = useState({ maxPrograms: 5, mode: "passive" as "passive" | "active", programType: "bounty" as "bounty" | "vdp" | "all" });
   const [huntMsg, setHuntMsg] = useState("");
 
   async function loadStatus() {
@@ -161,6 +161,13 @@ export default function BugBounty() {
                 <input type="number" min={1} max={50} value={huntCfg.maxPrograms}
                   onChange={(e) => setHuntCfg({ ...huntCfg, maxPrograms: parseInt(e.target.value, 10) || 1 })}
                   style={{ width: 60, marginLeft: 6 }} />
+              </label>
+              <label style={{ fontSize: 13 }}>Program type:
+                <select value={huntCfg.programType} onChange={(e) => setHuntCfg({ ...huntCfg, programType: e.target.value as any })} style={{ marginLeft: 6 }}>
+                  <option value="bounty">Bounty (paid)</option>
+                  <option value="vdp">VDP (no bounty — no ID verification needed)</option>
+                  <option value="all">All programs</option>
+                </select>
               </label>
               <label style={{ fontSize: 13 }}>Mode:
                 <select value={huntCfg.mode} onChange={(e) => setHuntCfg({ ...huntCfg, mode: e.target.value as any })} style={{ marginLeft: 6 }}>

@@ -56,9 +56,10 @@ async function h1Fetch(path, c) {
 
 // ---------- HackerOne ----------
 
-export async function h1Programs(c, { pageSize = 25, page = 1, query = "" } = {}) {
+export async function h1Programs(c, { pageSize = 25, page = 1, query = "", bounty } = {}) {
   let path = `/v1/hackers/programs?page%5Bsize%5D=${pageSize}&page%5Bnumber%5D=${page}`;
   if (query) path += `&filter%5Bquery%5D=${encodeURIComponent(query)}`;
+  if (bounty === true || bounty === false) path += `&filter%5Boffers_bounties%5D=${bounty}`;
   const j = await h1Fetch(path, c);
   if (j.error) return j;
   return {
@@ -211,7 +212,7 @@ function persistScan(t, res, mode) {
   saveDbNow();
 }
 
-export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode = "passive", maxPages = 25, requestDelayMs = 300, perTargetTimeoutMs = 8 * 60 * 1000 } = {}) {
+export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode = "passive", maxPages = 25, requestDelayMs = 300, perTargetTimeoutMs = 8 * 60 * 1000, programType = "bounty" } = {}) {
   if (huntState.running) return { error: "A hunt is already running" };
   const c = creds(platform);
   if (!c) return { error: `No ${platform} credentials configured`, needCreds: true };
@@ -221,6 +222,7 @@ export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode =
     id: crypto.randomUUID(),
     platform,
     mode,
+    programType,
     started_at: new Date().toISOString(),
     status: "discovering",
     programs_seen: 0,
@@ -232,11 +234,12 @@ export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode =
 
   (async () => {
     try {
-      // 1) discover programs — public_mode only, bounty-paying preferred
+      // 1) discover programs — public_mode only; programType: bounty | vdp | all
+      const bountyFilter = programType === "vdp" ? false : programType === "bounty" ? true : undefined;
       const seen = new Set();
       const candidates = [];
       for (let page = 1; page <= 10 && candidates.length < maxPrograms; page++) {
-        const r = await h1Programs(c, { pageSize: 25, page });
+        const r = await h1Programs(c, { pageSize: 25, page, bounty: bountyFilter });
         if (r.error || !r.programs?.length) break;
         for (const p of r.programs) {
           job.programs_seen++;

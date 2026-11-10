@@ -561,6 +561,7 @@ app.post("/api/bounty/auto-hunt", (req, res) => {
     maxPages: Math.min(parseInt(req.body?.maxPages, 10) || 25, 100),
     requestDelayMs: Math.min(parseInt(req.body?.requestDelayMs, 10) || 300, 5000),
     perTargetTimeoutMs: Math.min(parseInt(req.body?.perTargetTimeoutMs, 10) || 8 * 60 * 1000, 30 * 60 * 1000),
+    programType: ["bounty", "vdp", "all"].includes(req.body?.programType) ? req.body.programType : "bounty",
   });
   if (r.error) return res.status(r.needCreds ? 428 : 409).json({ ok: false, ...r });
   res.json(r);
