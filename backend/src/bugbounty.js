@@ -254,6 +254,30 @@ export async function autoHunt({ platform = "hackerone", maxPrograms = 5, mode =
           rec.findings = res.findings?.length ?? res.summary?.total ?? 0;
           rec.error = res.ok ? undefined : res.error;
           rec.summary = res.summary;
+          // persist the full scan record so it appears in Findings Database
+          if (res.ok) {
+            const db = getDb();
+            db.findings ??= [];
+            db.findings.unshift({
+              id: crypto.randomUUID(),
+              created_at: new Date().toISOString(),
+              target: res.target ?? t.target,
+              mode: res.mode ?? mode,
+              status: res.status ?? 0,
+              elapsed_ms: res.elapsed_ms ?? 0,
+              pages_crawled: res.pages_crawled ?? 0,
+              params_tested: res.params_tested ?? [],
+              authenticated: !!res.authenticated,
+              cancelled: !!res.cancelled,
+              live: false,
+              program: t.program,
+              program_url: t.program_url,
+              summary: res.summary,
+              findings: res.findings ?? [],
+            });
+            if (db.findings.length > 200) db.findings.length = 200;
+            saveDbNow();
+          }
         } catch (e) {
           rec.status = "error";
           rec.error = e.message;

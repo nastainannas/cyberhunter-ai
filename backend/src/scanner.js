@@ -1660,6 +1660,49 @@ const SECRET_PATTERNS = [
   { re: /(?:api[_-]?key|api[_-]?secret|secret[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)["'`\s]*[:=]["'`\s]*["'`]([A-Za-z0-9/+_.=-]{20,})["'`]/gi, name: "Hardcoded credential", sev: "high", group: 1 },
 ];
 
+// Live-verify an exposed secret against its provider API (read-only checks).
+// Returns a short verdict string, or null when the type can't be verified.
+async function verifySecret(name, secret) {
+  const t = AbortSignal.timeout(8000);
+  try {
+    if (/GitHub token/i.test(name)) {
+      const r = await fetch("https://api.github.com/user", {
+        headers: { Authorization: `Bearer ${secret}`, "User-Agent": "cyberhunter-ai", Accept: "application/vnd.github+json" },
+        signal: t,
+      });
+      if (r.ok) { const j = await r.json(); return `VALID — authenticates as GitHub user '${j.login}'`; }
+      return `invalid/expired (HTTP ${r.status})`;
+    }
+    if (/Google API key/i.test(name)) {
+      const r = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=test&key=${secret}`, { signal: t });
+      const j = await r.json().catch(() => ({}));
+      return j.status === "OK" ? "VALID — Geocoding API calls succeed (billable quota abuse possible)" : `restricted or invalid (${j.status ?? r.status})`;
+    }
+    if (/Stripe secret/i.test(name)) {
+      const r = await fetch("https://api.stripe.com/v1/balance", { headers: { Authorization: `Bearer ${secret}` }, signal: t });
+      return r.ok ? "VALID — Stripe account balance readable" : `invalid (${r.status})`;
+    }
+    if (/Slack token/i.test(name)) {
+      const r = await fetch("https://slack.com/api/auth.test", { method: "POST", headers: { Authorization: `Bearer ${secret}` }, signal: t });
+      const j = await r.json().catch(() => ({}));
+      return j.ok ? `VALID — Slack workspace '${j.team}' as '${j.user}'` : `invalid (${j.error ?? r.status})`;
+    }
+    if (/AWS/i.test(name)) {
+      return "verify manually — requires SigV4 signed request (sts:GetCallerIdentity)";
+    }
+    if (name === "JWT") {
+      try {
+        const p = JSON.parse(Buffer.from(secret.split(".")[1] ?? "", "base64url").toString());
+        const exp = p.exp ? new Date(p.exp * 1000).toISOString().slice(0, 10) : "no-exp";
+        return `decoded — sub:'${p.sub ?? "-"}' role:'${p.role ?? p.scope ?? "-"}' exp:${exp} — test signature/alg:none acceptance`;
+      } catch { return "payload undecodable"; }
+    }
+    return null;
+  } catch (e) {
+    return `verify failed: ${e.message}`;
+  }
+}
+
 async function scanExposedSecrets(pages, origin, ftF, log, t0, findings, finding) {
   // gather HTML + same-origin JS/JSON asset URLs
   const assets = new Set();
@@ -1692,14 +1735,15 @@ async function scanExposedSecrets(pages, origin, ftF, log, t0, findings, finding
         if (seen.has(key)) continue;
         seen.add(key);
         const masked = secret.length > 10 ? `${secret.slice(0, 6)}…${secret.slice(-4)}` : "***";
+        const ver = await verifySecret(sp.name, secret);
         findings.push(finding({
           title: `Exposed ${sp.name} in client-side code (${new URL(doc.url).pathname})`,
           severity: sp.sev === "critical" ? "critical" : sp.sev === "high" ? "high" : "medium",
           category: "exposure", owasp: "A02:2021 Cryptographic Failures",
           description: `A ${sp.name.toLowerCase()} is hardcoded in publicly served JavaScript/HTML — anyone can extract and abuse it.`,
           endpoint: doc.url, parameter: "N/A", vector: "static-asset",
-          payload: "N/A — passive observation",
-          evidence: `${new URL(doc.url).pathname} contains ${sp.name}: ${masked}`,
+          payload: secret,
+          evidence: `${new URL(doc.url).pathname} contains ${sp.name}: ${masked}${ver ? ` — live verification: ${ver}` : ""}`,
           exploit: sp.name.includes("AWS") || sp.name.includes("Stripe") || sp.name.includes("Private")
             ? "Attacker extracts the key and uses it directly — cloud API access, payment charges, or server impersonation."
             : "Attacker extracts the credential and uses it to access the associated service/account.",
